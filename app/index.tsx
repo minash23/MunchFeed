@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Logo from '../assets/images/adaptive-icon.png';
-import MunchFeed from '../assets/images/MunchFeed.png'; // Assuming you have this image
+const Logo = require( '../assets/images/adaptive-icon.png');  //
+const MunchFeed = require( '../assets/images/MunchFeed.png'); //these two lines could be imports
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
