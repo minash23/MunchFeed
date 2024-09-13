@@ -1,9 +1,24 @@
-import { Stack } from "expo-router";
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import LoginPage from './login';
+import ProfilePage from './profile';
+import addFriendsPage from './addFriends';
+import signUpPage from './signup';
+import MainPage from './main';
 
-export default function RootLayout() {
+const Stack = createStackNavigator();
+
+export default function App() {
   return (
-    <Stack>
-      <Stack.Screen name="index" />
-    </Stack>
+  <NavigationContainer independent={true}>
+      <Stack.Navigator initialRouteName= "login">
+        <Stack.Screen name="Login" component={LoginPage} />
+        <Stack.Screen name="Profile" component={ProfilePage} />
+        <Stack.Screen name = "AddFriends" component ={addFriendsPage} />
+        <Stack.Screen name = "Main" component = {MainPage} />
+        <Stack.Screen name = "SignUp" component = {signUpPage} />
+      </Stack.Navigator>
+   </NavigationContainer>
   );
 }

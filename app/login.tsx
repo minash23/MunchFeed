@@ -1,21 +1,42 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-const Logo = require( '../assets/images/adaptive-icon.png');  //
-const MunchFeed = require( '../assets/images/MunchFeed.png'); //these two lines could be imports
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../config/firebaseConfig'; // Adjust the import path if needed
+import { useNavigation } from '@react-navigation/native';
+
+// Importing images properly
+import Logo from '../assets/images/adaptive-icon.png';
+import MunchFeed from '../assets/images/MunchFeed.png';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const navigation = useNavigation(); // Correctly get navigation
 
   const handleLogin = () => {
     if (username === '' || password === '') {
       Alert.alert('Error', 'Please fill in both fields');
       return;
     }
-    // Replace this with actual authentication logic
-    Alert.alert('Logged In', `Username: ${username}, Password: ${password}`);
+
+    signInWithEmailAndPassword(auth, username, password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        console.log(user);
+        navigation.navigate('Profile'); // Ensure 'Profile' matches the name in your Stack.Navigator
+      })
+      .catch((error) => {
+        const errorCode = error.code;
+        const errorMessage = error.message;
+        Alert.alert('Login Error', `Error: ${errorMessage}`);
+        console.log(errorCode, errorMessage);
+      });
   };
+
+  const handleSignUp = () => {
+    navigation.navigate('SignUp');
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -38,6 +59,7 @@ export default function LoginPage() {
         secureTextEntry={true}
       />
       <Button title="Login" onPress={handleLogin} />
+      <Button title = "Sign Up" onPress = {handleSignUp} />
     </SafeAreaView>
   );
 }
@@ -45,13 +67,13 @@ export default function LoginPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center', // Vertically centers content
-    alignItems: 'center', // Horizontally centers content
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
   imageContainer: {
-    position: 'relative', // For positioning images relative to each other
-    bottom: 100, // Move the images up by 100 units
+    position: 'relative',
+    bottom: 100,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -62,7 +84,7 @@ const styles = StyleSheet.create({
   munchfeed: {
     width: 200,
     height: 35,
-    marginTop: -85, // Add space between the images
+    marginTop: -85,
   },
   title: {
     fontSize: 32,
@@ -76,6 +98,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingHorizontal: 10,
     borderRadius: 5,
-    width: '80%', // Make input fields wider
+    width: '80%',
   },
 });

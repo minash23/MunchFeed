@@ -1,9 +1,9 @@
 import { View, Text } from 'react-native';
 
-export default function ProfilePage() {
+export default function MainPage() {
   return (
     <View>
-      <Text>Welcome to your profile!</Text>
+      <Text>Welcome to your Main Page!</Text>
     </View>
   );
 }
