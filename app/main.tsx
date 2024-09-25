@@ -5,6 +5,7 @@ import { auth } from '../config/firebaseConfig'; // Ensure Firebase auth is init
 
 // Image assets
 import Logo from '../assets/images/adaptive-icon.png';
+import upload from '../assets/images/add.png';
 
 export default function MainPage() {
     const user = auth.currentUser; // Ensure the current user is retrieved from Firebase Auth
@@ -17,15 +18,21 @@ export default function MainPage() {
         // Add more friends with images as needed
     ];
 
+    // onClick
+    function add(x, y) {
+      return x + y;
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             {/* Logo at the top */}
             <Image source={Logo} style={styles.logo} />
 
+
             {/* Scrollable View */}
             <ScrollView contentContainerStyle={styles.scrollContainer}>
-                {/* Welcome Message */}
-                <Text style={styles.welcomeText}>Welcome to MunchFeed, {uid}!</Text>
+                <Text style = {styles.welcomeText}> Time to Post {uid}!</Text>
+                <Image source = {upload} style = {styles.uploadImage}/>
 
                 {/* Friends' pages with their meal images */}
                 {friendsPosts.map(friend => (
@@ -49,6 +56,13 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f5f5f5',
     },
+    uploadImage:{
+    width: 50,
+    height: 50,
+    alignSelf: 'center',
+    marginTop: -20,
+    },
+
     logo: {
         width: 100,
         height: 100,
