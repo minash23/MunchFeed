@@ -57,7 +57,8 @@ export default function MainPage() {
     ];
 
     // Function to open the camera and let the user take a picture
-    const openCamera = async () => {
+const openCamera = async () => {
+    try {
         // Request permission to access the camera
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
@@ -72,6 +73,8 @@ export default function MainPage() {
             quality: 1,
         });
 
+        console.log(result); // Log the result for debugging
+
         if (!result.canceled) {
             const imageUri = result.assets[0].uri;
             const imageName = imageUri.substring(imageUri.lastIndexOf('/') + 1); // Get the image name
@@ -80,9 +83,14 @@ export default function MainPage() {
             setImageName(imageName); // Store the image name
 
             // Upload the image to Firebase Storage
-            uploadImage(imageUri, imageName);
+            await uploadImage(imageUri, imageName);
         }
-    };
+    } catch (error) {
+        console.error('Error opening camera: ', error); // Log the error
+        Alert.alert('An error occurred', 'Unable to open the camera.');
+    }
+};
+
 
     // Function to upload the image to Firebase Storage
     const uploadImage = async (uri: string, imageName: string) => {
