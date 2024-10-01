@@ -24,7 +24,7 @@ export default function LoginPage() {
       .then((userCredential) => {
         const user = userCredential.user;
         console.log(user);
-        navigation.navigate('Profile'); // Ensure 'Profile' matches the name in your Stack.Navigator
+        navigation.navigate('Main'); // Ensure 'Profile' matches the name in your Stack.Navigator
       })
       .catch((error) => {
         const errorCode = error.code;

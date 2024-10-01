@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Image, SafeAreaView, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import * as ImagePicker from 'expo-image-picker'; // Install with 'expo install expo-image-picker'
+import { useNavigation } from '@react-navigation/native';
 
 export default function ProfilePage() {
     const [profileImage, setProfileImage] = useState(null);
@@ -12,6 +13,7 @@ export default function ProfilePage() {
     const [email, setEmail] = useState('name@example.com');
     const [phoneNumber, setPhoneNumber] = useState('615-123-4567');
     const [birthday, setBirthday] = useState('09/18/2004');
+    const navigation = useNavigation(); // Correctly get navigation
 
     // Allows picking an image
     const pickImage = async () => {
@@ -69,7 +71,14 @@ export default function ProfilePage() {
                         <TextInput style={styles.input} value={birthday} onChangeText={setBirthday} />
                     </View>
 
-                    <Button title="SAVE" onPress={() => alert('Profile Saved!')} />
+                    <Button
+                        title="SAVE"
+                        onPress={() => {
+                            alert('Profile Saved!');
+                            navigation.navigate("Main");
+                        }}
+                    />
+
                 </View>
             </ScrollView>
         </SafeAreaView>
