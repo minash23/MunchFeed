@@ -1,58 +1,46 @@
 import React, { useState } from 'react';
-import { auth, database } from '../config/firebaseConfig';
-import { View, Text, TextInput, Button, Image, SafeAreaView, StyleSheet, ScrollView, TouchableOpacity, FlatList} from 'react-native';
-import { ref, set, get, push } from 'firebase/database';
-import {string} from "prop-types";
-import {util} from "node-forge";
-import {data} from "@remix-run/router/utils";
+import {SafeAreaView, ScrollView, TextInput, Text, StyleSheet, Button, View} from 'react-native';
+import { auth, database } from '../config/firebaseConfig'; // Ensure Firebase is configured properly
+import { ref, set, push } from 'firebase/database';
 
-
-type Comment = {
-    id: string;
-    userId: string;
-    text: string;
-}
-
-type CommentsProps = {
-    postId: string;
-}
-
-
-const Comments = ({ postId }: CommentsProps) => {
+export default function CommentsPage() {
     const [commentText, setCommentText] = useState('');
-    const [comments, setComments] = useState<Comment[]>([]);
+    const postId = 'sample-post-id'; // Replace with actual postId
+    const [comments, setComments] = useState([]);
 
-    //fetch post's comments
-    const postCommeent = async () => {
-        const userId = auth.currentUser?.uid
-
-        if(userId && commentText) {
-            const newCommentRef = push(ref(database, `comments/${postId}`));
+    // Function to handle posting comments
+    const postComment = async () => {
+        const userId = auth.currentUser?.uid;
+        if (userId && commentText) {
+            const newCommentRef = push(ref(database, `comments/${postId}`)); // Store comments under specific postId
             await set(newCommentRef, {
                 userId,
                 text: commentText,
             });
-            setCommentText('');
+            setCommentText(''); // Clear the input after posting
+        } else {
+            alert('Please log in and enter a comment!');
         }
-    }
-}
+    };
 
-
-
-
-
-
-
-
-export default function CommentsPage(){
-    return(
+    return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.scrollViewContent}>
                 <Text>Welcome to your comments!</Text>
+                <Text>{comments}</Text>
             </ScrollView>
+            <View style={styles.inputContainer}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Add a comment..."
+                    value={commentText}
+                    onChangeText={setCommentText}
+                />
+                <Button title="Post" onPress={postComment} />
+            </View>
         </SafeAreaView>
     );
-};
+}
 
 const styles = StyleSheet.create({
     container: {
@@ -63,5 +51,20 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+    input: {
+        height: 40,
+        borderColor: 'gray',
+        borderWidth: 1,
+        marginBottom: 20,
+        paddingHorizontal: 10,
+        width: '80%',
     },
 });

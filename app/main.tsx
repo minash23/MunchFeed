@@ -6,6 +6,7 @@ import { auth } from '../config/firebaseConfig';
 import { getDatabase, ref, set, get, update } from "firebase/database";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useNavigation } from '@react-navigation/native';
+import Comments from './comments';
 
 import Logo from '../assets/images/adaptive-icon.png';
 import upload from '../assets/images/add.png';
@@ -154,6 +155,10 @@ export default function MainPage() {
                             resizeMode="cover"
                         />
                         <Text style={styles.mealText}>{friend.meal}</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Comments', { postId: friend.id })}
+                                          style={styles.commentButton}>
+                            <Text style={styles.commentButtonText}>View all comments</Text>
+                        </TouchableOpacity>
                     </View>
                 ))}
             </ScrollView>
@@ -246,4 +251,19 @@ const styles = StyleSheet.create({
     navText: {
         fontSize: 16,
     },
+    commentButton: {
+        marginTop: 10,
+        backgroundColor: '#fff',
+        opacity: 0.8,
+        textAlign: 'left',
+        paddingTop: 5,
+        borderRadius: 5,
+    },
+    commentButtonText: {
+        opacity: 0.9,
+        color: '#A9A9A9',
+        textAlign: 'left',
+        fontSize: 14,
+        fontWeight: 'bold',
+    }
 });
