@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {SafeAreaView, ScrollView, TextInput, Text, StyleSheet, Button, View} from 'react-native';
 import { auth, database } from '../config/firebaseConfig'; // Ensure Firebase is configured properly
-import { ref, set, push } from 'firebase/database';
+import {ref, set, push, onValue} from 'firebase/database';
+import {useRoute} from "@react-navigation/core";
 
 export default function CommentsPage() {
     const [commentText, setCommentText] = useState('');
-    const postId = 'sample-post-id'; // Replace with actual postId
     const [comments, setComments] = useState([]);
+    const route = useRoute();
+    const postId = route.params;
+
+
 
     // Function to handle posting comments
     const postComment = async () => {
@@ -19,7 +23,7 @@ export default function CommentsPage() {
             });
             setCommentText(''); // Clear the input after posting
         } else {
-            alert('Please log in and enter a comment!');
+            alert('Please log in to enter a comment!');
         }
     };
 
