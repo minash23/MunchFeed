@@ -1,21 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, Image, SafeAreaView, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import * as ImagePicker from 'expo-image-picker'; // Install with 'expo install expo-image-picker'
-import { useNavigation } from '@react-navigation/native';
+import { auth, database } from '../config/firebaseConfig'; // Adjust the import path if needed
+import * as ImagePicker from 'expo-image-picker';
+import { ref, get, set } from 'firebase/database';
 
 export default function ProfilePage() {
     const [profileImage, setProfileImage] = useState(null);
-    const [firstName, setFirstName] = useState('Kyrellos');
-    const [lastName, setLastName] = useState('Ibrahim');
-    const [username, setUsername] = useState('KoolCid24');
-    const [foodPreference, setFoodPreference] = useState('Soul Food');
-    const [location, setLocation] = useState('San Francisco, CA');
-    const [email, setEmail] = useState('name@example.com');
-    const [phoneNumber, setPhoneNumber] = useState('615-123-4567');
-    const [birthday, setBirthday] = useState('09/18/2004');
-    const navigation = useNavigation(); // Correctly get navigation
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [username, setUsername] = useState('');
+    const [foodPreference, setFoodPreference] = useState('');
+    const [location, setLocation] = useState('');
+    const [email, setEmail] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [birthday, setBirthday] = useState('');
 
-    // Allows picking an image
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const user = auth.currentUser;
+                if (user) {
+                    const userRef = ref(database, 'users/' + user.uid);
+                    const snapshot = await get(userRef);
+                    if (snapshot.exists()) {
+                        const userData = snapshot.val();
+                        setUsername(userData.username || '');
+                        setFirstName(userData.firstName || '');
+                        setLastName(userData.lastName || '');
+                        setFoodPreference(userData.foodPreference || '');
+                        setLocation(userData.location || '');
+                        setEmail(userData.email || '');
+                        setPhoneNumber(userData.phoneNumber || '');
+                        setBirthday(userData.birthday || '');
+                        setProfileImage(userData.profileImage || null);
+                    } else {
+                        console.log("No data available");
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+            }
+        };
+
+        fetchUserData();
+    }, []);
+
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -28,6 +57,29 @@ export default function ProfilePage() {
             setProfileImage(result.assets[0].uri);
         } else {
             alert('Please select a JPG or PNG image smaller than 5 MB.');
+        }
+    };
+
+    const saveUserProfile = async () => {
+        try {
+            const user = auth.currentUser;
+            if (user) {
+                const userRef = ref(database, 'users/' + user.uid);
+                await set(userRef, {
+                    username,
+                    firstName,
+                    lastName,
+                    foodPreference,
+                    location,
+                    email,
+                    phoneNumber,
+                    birthday,
+                    profileImage
+                });
+                alert('Profile Saved!');
+            }
+        } catch (error) {
+            console.error("Error saving user data:", error);
         }
     };
 
@@ -71,14 +123,7 @@ export default function ProfilePage() {
                         <TextInput style={styles.input} value={birthday} onChangeText={setBirthday} />
                     </View>
 
-                    <Button
-                        title="SAVE"
-                        onPress={() => {
-                            alert('Profile Saved!');
-                            navigation.navigate("Main");
-                        }}
-                    />
-
+                    <Button title="SAVE" onPress={saveUserProfile} />
                 </View>
             </ScrollView>
         </SafeAreaView>
