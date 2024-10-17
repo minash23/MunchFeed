@@ -3,6 +3,7 @@ import { View, Text, TextInput, Button, Image, SafeAreaView, StyleSheet, ScrollV
 import { auth, database } from '../config/firebaseConfig'; // Adjust the import path if needed
 import * as ImagePicker from 'expo-image-picker';
 import { ref, get, set } from 'firebase/database';
+import { useNavigation } from '@react-navigation/native';
 
 export default function ProfilePage() {
     const [profileImage, setProfileImage] = useState(null);
@@ -14,6 +15,7 @@ export default function ProfilePage() {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [birthday, setBirthday] = useState('');
+    const navigation = useNavigation();
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -77,6 +79,7 @@ export default function ProfilePage() {
                     profileImage
                 });
                 alert('Profile Saved!');
+                navigation.navigate('Main');
             }
         } catch (error) {
             console.error("Error saving user data:", error);
