@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Button } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, database } from '../config/firebaseConfig';
 import { ref, get, set } from 'firebase/database';
 
+type User = {
+    id: string;
+    username: string;
+};
+
 const PendingRequestsScreen = () => {
-    const [pendingRequests, setPendingRequests] = useState<any[]>([]);
-    const [friends, setFriends] = useState<any[]>([]);
+    const [pendingRequests, setPendingRequests] = useState<User[]>([]);
+    const [friends, setFriends] = useState<User[]>([]);
 
     useEffect(() => {
         fetchPendingRequests();
         fetchFriendsList();
     }, []);
 
+    // Fetch pending friend requests
     const fetchPendingRequests = async () => {
         const currentUserId = auth.currentUser?.uid;
         if (!currentUserId) return;
@@ -21,11 +27,21 @@ const PendingRequestsScreen = () => {
         const snapshot = await get(friendRequestsRef);
 
         if (snapshot.exists()) {
-            const requests = Object.keys(snapshot.val());
+            const requests = await Promise.all(
+                Object.keys(snapshot.val()).map(async (userId: string) => {
+                    const userRef = ref(database, `users/${userId}`);
+                    const userSnapshot = await get(userRef);
+                    return {
+                        id: userId,
+                        username: userSnapshot.val().username,
+                    };
+                })
+            );
             setPendingRequests(requests);
         }
     };
 
+    // Fetch current friends list
     const fetchFriendsList = async () => {
         const currentUserId = auth.currentUser?.uid;
         if (!currentUserId) return;
@@ -34,11 +50,21 @@ const PendingRequestsScreen = () => {
         const snapshot = await get(friendsRef);
 
         if (snapshot.exists()) {
-            const friendIds = Object.keys(snapshot.val());
-            setFriends(friendIds);
+            const friendsList = await Promise.all(
+                Object.keys(snapshot.val()).map(async (friendId: string) => {
+                    const friendRef = ref(database, `users/${friendId}`);
+                    const friendSnapshot = await get(friendRef);
+                    return {
+                        id: friendId,
+                        username: friendSnapshot.val().username,
+                    };
+                })
+            );
+            setFriends(friendsList);
         }
     };
 
+    // Handle accepting a friend request
     const handleAcceptFriendRequest = async (friendUserId: string) => {
         const currentUserId = auth.currentUser?.uid;
         if (!currentUserId) return;
@@ -68,11 +94,11 @@ const PendingRequestsScreen = () => {
 
             <FlatList
                 data={pendingRequests}
-                keyExtractor={(item) => item}
+                keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <View style={styles.userContainer}>
-                        <Text>{item}</Text>
-                        <TouchableOpacity onPress={() => handleAcceptFriendRequest(item)}>
+                        <Text style={styles.usernameText}>{item.username}</Text>
+                        <TouchableOpacity onPress={() => handleAcceptFriendRequest(item.id)}>
                             <Text style={styles.acceptText}>Accept</Text>
                         </TouchableOpacity>
                     </View>
@@ -83,10 +109,10 @@ const PendingRequestsScreen = () => {
 
             <FlatList
                 data={friends}
-                keyExtractor={(item) => item}
+                keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <View style={styles.userContainer}>
-                        <Text>{item}</Text>
+                        <Text style={styles.usernameText}>{item.username}</Text>
                     </View>
                 )}
             />
@@ -105,9 +131,14 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     userContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         padding: 10,
         borderBottomWidth: 1,
         borderBottomColor: '#ccc',
+    },
+    usernameText: {
+        fontSize: 18,
     },
     acceptText: {
         color: 'green',
