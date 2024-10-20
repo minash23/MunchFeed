@@ -1,61 +1,102 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import {
+    View,
+    Text,
+    Image,
+    StyleSheet,
+    ScrollView,
+    ActivityIndicator,
+    TouchableOpacity,
+    Alert,
+    TextInput,
+    Keyboard,
+    TouchableWithoutFeedback
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { auth } from '../config/firebaseConfig';
-import { getDatabase, ref, set, get, update } from "firebase/database";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getDatabase, ref, set, get } from "firebase/database";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useNavigation } from '@react-navigation/native';
-import Comments from './comments';
 
-import Logo from '../assets/images/adaptive-icon.png';
-import upload from '../assets/images/add.png';
+// Define types
+type Post = {
+    imageUrl: string;
+    storagePath: string;
+    caption: string;
+    timestamp: number;
+    userName: string;
+};
+
+type NavigationProps = {
+    navigate: (screen: string, params?: any) => void;
+};
 
 export default function MainPage() {
-    const [uid, setUid] = useState<string | null>(null);
-    const [userName, setUserName] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [image, setImage] = useState<string | null>(null);
-    const [imageName, setImageName] = useState<string | null>(null);
-    const navigation = useNavigation();
+    const [uid, setUid] = useState<string>('');
+    const [userName, setUserName] = useState<string>('');
+    const [loading, setLoading] = useState<boolean>(true);
+    const [image, setImage] = useState<string>('');
+    const [imageName, setImageName] = useState<string>('');
+    const [caption, setCaption] = useState<string>('');
+    const [currentPost, setCurrentPost] = useState<Post | null>(null);
+    const navigation = useNavigation<NavigationProps>();
 
     useEffect(() => {
+        let isMounted = true;
+
         const fetchUserData = async () => {
-            const user = auth.currentUser;
-            if (user) {
-                setUid(user.uid);
-                try {
-                    const database = getDatabase();
-                    const userRef = ref(database, `users/${user.uid}`);
-                    const snapshot = await get(userRef);
-                    if (snapshot.exists()) {
-                        const userData = snapshot.val();
-                        setUserName(userData.name);
-                    } else {
-                        console.log('No user found with that UID.');
-                    }
-                } catch (error) {
-                    console.error('Error fetching user data:', error);
+            try {
+                const user = auth.currentUser;
+                if (!user) {
+                    setLoading(false);
+                    return;
                 }
-            } else {
-                console.log('No authenticated user.');
+
+                if (isMounted) {
+                    setUid(user.uid);
+                }
+
+                const database = getDatabase();
+                const userRef = ref(database, `users/${user.uid}`);
+                const snapshot = await get(userRef);
+
+                if (!snapshot.exists() || !isMounted) return;
+
+                const userData = snapshot.val();
+                if (isMounted) {
+                    setUserName(userData.username || '');
+                }
+
+                // Fetch user's post
+                const postRef = ref(database, `posts/${user.uid}`);
+                const postSnapshot = await get(postRef);
+
+                if (postSnapshot.exists() && isMounted) {
+                    setCurrentPost(postSnapshot.val());
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                Alert.alert('Error', 'Failed to load data');
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
-            setLoading(false);
         };
 
         fetchUserData();
-    }, []);
 
-    const friendsPosts = [
-        { id: 1, name: 'Mike Johnson', meal: 'Pancakes for breakfast', imageUrl: 'https://www.allrecipes.com/thmb/WqWggh6NwG-r8PoeA3OfW908FUY=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/21014-Good-old-Fashioned-Pancakes-mfs_001-1fa26bcdedc345f182537d95b6cf92d8.jpg' },
-        { id: 2, name: 'Emily White', meal: 'Sushi for dinner', imageUrl: 'https://cdn.britannica.com/52/128652-050-14AD19CA/Maki-zushi.jpg' },
-    ];
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const openCamera = async () => {
         try {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission denied', 'You need to grant camera permissions to take a photo.');
+                Alert.alert('Permission denied', 'Camera permission is required');
                 return;
             }
 
@@ -67,63 +108,94 @@ export default function MainPage() {
 
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const imageUri = result.assets[0].uri;
-                const imageName = imageUri.substring(imageUri.lastIndexOf('/') + 1);
-
+                const name = imageUri.substring(imageUri.lastIndexOf('/') + 1);
                 setImage(imageUri);
-                setImageName(imageName);
-
-                await uploadImage(imageUri, imageName);
+                setImageName(name);
             }
         } catch (error) {
-            console.error('Error opening camera: ', error);
-            Alert.alert('An error occurred', 'Unable to open the camera.');
+            console.error('Camera error:', error);
+            Alert.alert('Error', 'Failed to open camera');
         }
     };
 
-    const uploadImage = async (uri: string, imageName: string) => {
+    const handlePost = async () => {
+        if (!image) {
+            Alert.alert('Error', 'Please take a photo first');
+            return;
+        }
+
+        if (!userName) {
+            Alert.alert('Error', 'User name not found');
+            return;
+        }
+
         try {
+            setLoading(true);
+
+            const user = auth.currentUser;
+            if (!user) {
+                Alert.alert('Error', 'User not authenticated');
+                return;
+            }
+
             const storage = getStorage();
-            const response = await fetch(uri);
-            const blob = await response.blob();
 
-            const storageReference = storageRef(storage, `images/${imageName}`);
-            await uploadBytes(storageReference, blob);
+            // If there's an existing post, delete the old image from storage
+            if (currentPost?.storagePath) {
+                try {
+                    const oldImageRef = storageRef(storage, currentPost.storagePath);
+                    await deleteObject(oldImageRef).catch(error => {
+                        console.log('Old image not found or already deleted:', error);
+                    });
+                } catch (error) {
+                    console.error('Error deleting old image:', error);
+                }
+            }
 
-            const downloadURL = await getDownloadURL(storageReference);
-            await saveImageDetails(downloadURL, imageName);
-        } catch (error) {
-            console.error('Error uploading image:', error);
-            Alert.alert('Upload Failed', 'Failed to upload the image. Please try again.');
-        }
-    };
-
-    const saveImageDetails = async (downloadURL: string, imageName: string) => {
-        const database = getDatabase();
-        const user = auth.currentUser;
-
-        if (user && user.uid) {
+            // Upload new image
             try {
-                const userRef = ref(database, `users/${user.uid}`);
+                const response = await fetch(image);
+                const blob = await response.blob();
 
-                // Create an update object with only the new image data
-                const updateData = {
-                    image: {
-                        imageUrl: downloadURL,
-                        imageName: imageName,
-                        timestamp: Date.now()
-                    }
+                const timestamp = Date.now();
+                const uniqueImageName = `${timestamp}_${imageName}`;
+                const imageStorageRef = storageRef(storage, `images/${uniqueImageName}`);
+
+                await uploadBytes(imageStorageRef, blob);
+                const downloadURL = await getDownloadURL(imageStorageRef);
+
+                // Save post data
+                const database = getDatabase();
+                const postRef = ref(database, `posts/${user.uid}`);
+
+                const postData: Post = {
+                    imageUrl: downloadURL,
+                    storagePath: `images/${uniqueImageName}`,
+                    caption: caption.trim(),
+                    timestamp,
+                    userName
                 };
 
-                // Update the user's data with the new image information
-                await update(userRef, updateData);
+                await set(postRef, postData);
 
-                Alert.alert('Success', 'Image uploaded and saved successfully!');
+                // Update local state
+                setCurrentPost(postData);
+
+                // Reset form
+                setImage('');
+                setImageName('');
+                setCaption('');
+
+                Alert.alert('Success', 'Post updated successfully!');
             } catch (error) {
-                console.error('Error saving image details:', error);
-                Alert.alert('Save Failed', 'Failed to save image details. Please try again.');
+                console.error('Upload error:', error);
+                throw error;
             }
-        } else {
-            Alert.alert('Error', 'User not authenticated.');
+        } catch (error) {
+            console.error('Post error:', error);
+            Alert.alert('Error', 'Failed to update post');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -137,39 +209,91 @@ export default function MainPage() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Image source={Logo} style={styles.logo} />
-            <ScrollView contentContainerStyle={styles.scrollContainer}>
-                <Text style={styles.welcomeText}>Time to Post {userName || 'Guest'}!</Text>
-                <TouchableOpacity onPress={openCamera}>
-                    <Image source={upload} style={styles.uploadImage} />
-                </TouchableOpacity>
-                {image && (
-                    <Image source={{ uri: image }} style={styles.capturedImage} />
-                )}
-                {friendsPosts.map(friend => (
-                    <View key={friend.id} style={styles.friendCard}>
-                        <Text style={styles.friendName}>{friend.name}</Text>
-                        <Image
-                            source={{ uri: friend.imageUrl }}
-                            style={styles.mealImage}
-                            resizeMode="cover"
-                        />
-                        <Text style={styles.mealText}>{friend.meal}</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Comments', { postId: friend.id })}
-                                          style={styles.commentButton}>
-                            <Text style={styles.commentButtonText}>View all comments</Text>
-                        </TouchableOpacity>
-                    </View>
-                ))}
-            </ScrollView>
+            <View style={styles.header}>
+                <Image source={require('../assets/images/adaptive-icon.png')} style={styles.logo} />
+            </View>
+
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <ScrollView contentContainerStyle={styles.scrollContainer}>
+                    <Text style={styles.welcomeText}>Welcome {userName || 'Guest'}!</Text>
+
+                    <TouchableOpacity onPress={openCamera} style={styles.cameraButton}>
+                        <Image source={require('../assets/images/add.png')} style={styles.uploadImage} />
+                        <Text style={styles.cameraButtonText}>
+                            {currentPost ? 'Update Your Post' : 'Create Your Post'}
+                        </Text>
+                    </TouchableOpacity>
+
+                    {image ? (
+                        <View style={styles.postContainer}>
+                            <Image source={{ uri: image }} style={styles.capturedImage} />
+                            <TextInput
+                                style={styles.captionInput}
+                                placeholder="Write a caption..."
+                                value={caption}
+                                onChangeText={setCaption}
+                                multiline
+                                maxLength={200}
+                                returnKeyType="done"
+                                onSubmitEditing={Keyboard.dismiss}
+                                blurOnSubmit={true}
+                            />
+                            <TouchableOpacity
+                                style={styles.postButton}
+                                onPress={handlePost}
+                                disabled={loading}
+                            >
+                                <Text style={styles.postButtonText}>
+                                    {loading ? 'Posting...' : (currentPost ? 'Update Post' : 'Share Post')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : null}
+
+                    {currentPost && !image && (
+                        <View style={styles.postCard}>
+                            <View style={styles.postHeader}>
+                                <Text style={styles.userName}>{currentPost.userName}</Text>
+                                <Text style={styles.timestamp}>
+                                    {new Date(currentPost.timestamp).toLocaleDateString()}
+                                </Text>
+                            </View>
+                            <Image
+                                source={{ uri: currentPost.imageUrl }}
+                                style={styles.postImage}
+                                resizeMode="cover"
+                            />
+                            {currentPost.caption ? (
+                                <Text style={styles.caption}>{currentPost.caption}</Text>
+                            ) : null}
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('Comments', { postId: uid })}
+                                style={styles.commentButton}
+                            >
+                                <Text style={styles.commentButtonText}>View comments</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </ScrollView>
+            </TouchableWithoutFeedback>
+
             <View style={styles.bottomNav}>
-                <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Profile' as never)}>
+                <TouchableOpacity
+                    style={styles.navItem}
+                    onPress={() => navigation.navigate('Profile')}
+                >
                     <Text style={styles.navText}>Profile</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Main' as never)}>
-                    <Text style={styles.navText}>Main</Text>
+                <TouchableOpacity
+                    style={styles.navItem}
+                    onPress={() => navigation.navigate('Main')}
+                >
+                    <Text style={styles.navText}>Home</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('AddFriends' as never)}>
+                <TouchableOpacity
+                    style={styles.navItem}
+                    onPress={() => navigation.navigate('AddFriends')}
+                >
                     <Text style={styles.navText}>Friends</Text>
                 </TouchableOpacity>
             </View>
@@ -182,88 +306,131 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f5f5f5',
     },
+    header: {
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+        backgroundColor: '#fff',
+    },
+    logo: {
+        width: 80,
+        height: 80,
+        resizeMode: 'contain',
+    },
+    scrollContainer: {
+        padding: 15,
+    },
+    welcomeText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginVertical: 15,
+        textAlign: 'center',
+    },
+    cameraButton: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    cameraButtonText: {
+        marginTop: 5,
+        fontSize: 16,
+        color: '#666',
+    },
     uploadImage: {
         width: 50,
         height: 50,
-        alignSelf: 'center',
-        marginTop: -20,
     },
-    capturedImage: {
-        width: 200,
-        height: 200,
-        alignSelf: 'center',
-        marginTop: 10,
-        borderRadius: 10,
-    },
-    logo: {
-        width: 100,
-        height: 100,
-        alignSelf: 'center',
-        marginTop: -40,
-        marginBottom: -20,
-    },
-    scrollContainer: {
-        paddingHorizontal: 20,
-        paddingBottom: 20,
-    },
-    welcomeText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    friendCard: {
+    postContainer: {
         backgroundColor: '#fff',
-        padding: 20,
-        marginBottom: 15,
+        padding: 15,
         borderRadius: 10,
+        marginBottom: 20,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 5,
+        shadowRadius: 4,
         elevation: 3,
     },
-    friendName: {
-        fontWeight: 'bold',
-        fontSize: 16,
-        marginBottom: 10,
-    },
-    mealImage: {
+    capturedImage: {
         width: '100%',
-        height: 150,
+        height: 300,
         borderRadius: 10,
     },
-    mealText: {
-        marginTop: 5,
+    captionInput: {
+        marginTop: 15,
+        padding: 10,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 5,
+        minHeight: 80,
+        textAlignVertical: 'top',
+    },
+    postButton: {
+        backgroundColor: '#4CAF50',
+        padding: 12,
+        borderRadius: 5,
+        marginTop: 15,
+        alignItems: 'center',
+    },
+    postButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    postCard: {
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        marginBottom: 15,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    postHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 15,
+    },
+    userName: {
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    timestamp: {
+        color: '#666',
+        fontSize: 12,
+    },
+    postImage: {
+        width: '100%',
+        height: 300,
+    },
+    caption: {
+        padding: 15,
+        fontSize: 14,
+    },
+    commentButton: {
+        padding: 15,
+        borderTopWidth: 1,
+        borderTopColor: '#eee',
+    },
+    commentButtonText: {
+        color: '#666',
         fontSize: 14,
     },
     bottomNav: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        padding: 10,
+        padding: 15,
         backgroundColor: '#fff',
         borderTopWidth: 1,
-        borderColor: '#ccc',
+        borderTopColor: '#ddd',
     },
     navItem: {
-        padding: 10,
+        padding: 5,
     },
     navText: {
         fontSize: 16,
+        color: '#333',
     },
-    commentButton: {
-        marginTop: 10,
-        backgroundColor: '#fff',
-        opacity: 0.8,
-        textAlign: 'left',
-        paddingTop: 5,
-        borderRadius: 5,
-    },
-    commentButtonText: {
-        opacity: 0.9,
-        color: '#A9A9A9',
-        textAlign: 'left',
-        fontSize: 14,
-        fontWeight: 'bold',
-    }
 });
