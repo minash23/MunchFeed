@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, Image } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebaseConfig'; // Adjust the import path if needed
@@ -39,6 +50,9 @@ export default function LoginPage() {
   }
 
   return (
+      <KeyboardAvoidingView
+        style={{flex: 1}} behavior={'padding'}  keyboardVerticalOffset={2} >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <SafeAreaView style={styles.container}>
       <View style={styles.imageContainer}>
         <Image source={Logo} style={styles.logo} />
@@ -61,6 +75,8 @@ export default function LoginPage() {
       <Button title="Login" onPress={handleLogin} />
       <Button title = "Sign Up" onPress = {handleSignUp} />
     </SafeAreaView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
   );
 }
 
