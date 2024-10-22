@@ -38,6 +38,8 @@ const PendingRequestsScreen = () => {
                 })
             );
             setPendingRequests(requests);
+        } else {
+            setPendingRequests([]);
         }
     };
 
@@ -61,6 +63,8 @@ const PendingRequestsScreen = () => {
                 })
             );
             setFriends(friendsList);
+        } else {
+            setFriends([]);
         }
     };
 
@@ -69,23 +73,27 @@ const PendingRequestsScreen = () => {
         const currentUserId = auth.currentUser?.uid;
         if (!currentUserId) return;
 
-        // Add friend to the current user
-        const currentUserFriendRef = ref(database, `users/${currentUserId}/friends/${friendUserId}`);
-        await set(currentUserFriendRef, true);
+        try {
+            // Add friend to the current user's friends list
+            const currentUserFriendRef = ref(database, `users/${currentUserId}/friends/${friendUserId}`);
+            await set(currentUserFriendRef, true);
 
-        // Add current user to the friend's friends list
-        const friendUserFriendRef = ref(database, `users/${friendUserId}/friends/${currentUserId}`);
-        await set(friendUserFriendRef, true);
+            // Add current user to the friend's friends list
+            const friendUserFriendRef = ref(database, `users/${friendUserId}/friends/${currentUserId}`);
+            await set(friendUserFriendRef, true);
 
-        // Remove the friend request
-        const friendRequestRef = ref(database, `users/${currentUserId}/friendRequests/${friendUserId}`);
-        await set(friendRequestRef, null);
+            // Remove the friend request
+            const friendRequestRef = ref(database, `users/${currentUserId}/friendRequests/${friendUserId}`);
+            await set(friendRequestRef, null);
 
-        alert('Friend request accepted!');
+            alert('Friend request accepted!');
 
-        // Refresh pending requests and friends list
-        fetchPendingRequests();
-        fetchFriendsList();
+            // Refresh pending requests and friends list
+            fetchPendingRequests();
+            fetchFriendsList();
+        } catch (error) {
+            console.error('Error accepting friend request:', error);
+        }
     };
 
     return (
@@ -128,6 +136,7 @@ const styles = StyleSheet.create({
     headerText: {
         fontSize: 24,
         fontWeight: 'bold',
+        fontFamily: 'Helvetica',
         marginBottom: 20,
     },
     userContainer: {
@@ -139,6 +148,7 @@ const styles = StyleSheet.create({
     },
     usernameText: {
         fontSize: 18,
+        fontFamily: 'Helvetica',
     },
     acceptText: {
         color: 'green',

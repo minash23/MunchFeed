@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, Image, SafeAreaView, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { auth, database } from '../config/firebaseConfig'; // Adjust the import path if needed
+import { auth, database, storage } from '../config/firebaseConfig';
 import * as ImagePicker from 'expo-image-picker';
 import { ref, get, set } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigation } from '@react-navigation/native';
 
 export default function ProfilePage() {
@@ -47,6 +48,31 @@ export default function ProfilePage() {
         fetchUserData();
     }, []);
 
+    const uploadProfileImage = async (uri: string) =>{
+        const user = auth.currentUser;
+        if(!user) {
+            return;
+        }
+        try {
+            // create reference for firebase storage
+            const imageRef = storageRef(storage, `profileImages/${user.uid}`);
+            //convert local to blob
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            //upload image
+            await uploadBytes(imageRef, blob);
+
+            //downloadURL
+            const downloadURL = await getDownloadURL(imageRef);
+
+            return downloadURL;
+        }
+        catch (error) {
+            console.error("Error uploading image:", error);
+            return null;
+        }
+    }
+
     const pickImage = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -56,7 +82,10 @@ export default function ProfilePage() {
         });
 
         if (!result.canceled && result.assets[0].fileSize <= 5000000) {
-            setProfileImage(result.assets[0].uri);
+            const uploadedURL = await uploadProfileImage(result.assets[0].uri)
+            if(uploadedURL) {
+                setProfileImage(uploadedURL);
+            }
         } else {
             alert('Please select a JPG or PNG image smaller than 5 MB.');
         }
@@ -65,24 +94,45 @@ export default function ProfilePage() {
     const saveUserProfile = async () => {
         try {
             const user = auth.currentUser;
-            if (user) {
-                const userRef = ref(database, 'users/' + user.uid);
-                await set(userRef, {
-                    username,
-                    firstName,
-                    lastName,
-                    foodPreference,
-                    location,
-                    email,
-                    phoneNumber,
-                    birthday,
-                    profileImage
-                });
-                alert('Profile Saved!');
-                navigation.navigate('Main');
+            if (!user) {
+                console.error("User not authenticated");
+                return;
             }
+
+
+            let profileImageUrl = profileImage; // This holds the URL that will be saved in the database
+            if (profileImage && profileImage.startsWith('file://')) {
+                // Only upload if a new local image has been selected
+                const response = await fetch(profileImage); // Fetch the image from the local file system
+                const blob = await response.blob(); // Convert it to a blob for Firebase upload
+
+                // Reference for storage location
+                const imageRef = storageRef(storage, `profileImages/${user.uid}`); // Storage path for the user's profile image
+                await uploadBytes(imageRef, blob); // Upload the image to Firebase Storage
+
+                // Get the downloadable URL for the uploaded image
+                profileImageUrl = await getDownloadURL(imageRef);
+            }
+
+            // Save the user data, including the profileImageUrl, to Firebase Realtime Database
+            const userRef = ref(database, 'users/' + user.uid);
+            await set(userRef, {
+                username,
+                firstName,
+                lastName,
+                foodPreference,
+                location,
+                email,
+                phoneNumber,
+                birthday,
+                profileImage: profileImageUrl // Save the URL instead of the local path
+            });
+
+            alert('Profile Saved!');
+            navigation.navigate('Main');
         } catch (error) {
             console.error("Error saving user data:", error);
+            alert('Failed to save profile. Please try again.');
         }
     };
 
