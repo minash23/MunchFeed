@@ -7,7 +7,6 @@ import addFriendsPage from './addFriends';
 import signUpPage from './signup';
 import MainPage from './main';
 import CommentsPage from './comments';
-import PostPage from './post';
 import PendingRequestsScreen from "@/app/pendingRequests";
 
 const Stack = createStackNavigator();
@@ -23,7 +22,6 @@ export default function App() {
         <Stack.Screen name = "Main" component = {MainPage} />
         <Stack.Screen name = "Comments" component = {CommentsPage}  />
         <Stack.Screen name = "SignUp" component = {signUpPage} />
-          <Stack.Screen name = "Post" component = {PostPage} />
 
       </Stack.Navigator>
    </NavigationContainer>
