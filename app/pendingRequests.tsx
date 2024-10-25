@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import {View, Text, FlatList, TouchableOpacity, StyleSheet, Image, ScrollView} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, database } from '../config/firebaseConfig';
 import { ref, get, set } from 'firebase/database';
@@ -7,6 +7,7 @@ import { ref, get, set } from 'firebase/database';
 type User = {
     id: string;
     username: string;
+    profileImage?: string;
 };
 
 const PendingRequestsScreen = () => {
@@ -34,6 +35,7 @@ const PendingRequestsScreen = () => {
                     return {
                         id: userId,
                         username: userSnapshot.val().username,
+                        profileImage: userSnapshot.val().profileImage,
                     };
                 })
             );
@@ -59,6 +61,7 @@ const PendingRequestsScreen = () => {
                     return {
                         id: friendId,
                         username: friendSnapshot.val().username,
+                        profileImage: friendSnapshot.val().profileImage
                     };
                 })
             );
@@ -98,34 +101,50 @@ const PendingRequestsScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Text style={styles.headerText}>Pending Friend Requests</Text>
+                <Text style={styles.headerText}>Pending Friend Requests</Text>
 
-            <FlatList
-                data={pendingRequests}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <View style={styles.userContainer}>
-                        <Text style={styles.usernameText}>{item.username}</Text>
-                        <TouchableOpacity onPress={() => handleAcceptFriendRequest(item.id)}>
-                            <Text style={styles.acceptText}>Accept</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-            />
+                <FlatList
+                    data={pendingRequests}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                        <View style={styles.userContainer}>
+                            <View style={styles.profileContainer}>
+                                <Image
+                                    source={{ uri: item.profileImage }}
+                                    style={styles.profileImage}
+                                />
+                                <Text style={styles.usernameText}>{item.username}</Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => handleAcceptFriendRequest(item.id)}
+                                style={styles.acceptButton}
+                            >
+                                <Text style={styles.acceptText}>Accept</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                />
 
-            <Text style={styles.headerText}>Your Friends</Text>
+                <Text style={styles.headerText}>Your Friends</Text>
 
-            <FlatList
-                data={friends}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <View style={styles.userContainer}>
-                        <Text style={styles.usernameText}>{item.username}</Text>
-                    </View>
-                )}
-            />
+                <FlatList
+                    data={friends}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                        <View style={styles.userContainer}>
+                            <View style={styles.profileContainer}>
+                                <Image
+                                    source={{ uri: item.profileImage }}
+                                    style={styles.profileImage}
+                                />
+                                <Text style={styles.usernameText}>{item.username}</Text>
+                            </View>
+                        </View>
+                    )}
+                />
         </SafeAreaView>
     );
+
 };
 
 const styles = StyleSheet.create({
@@ -133,26 +152,48 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
     },
+    scrollContainer: {
+        flexGrow: 1,
+    },
     headerText: {
         fontSize: 24,
-        fontWeight: 'bold',
-        fontFamily: 'Helvetica',
+        fontWeight: 'light',
+        fontFamily: 'Trebuchet MS',
         marginBottom: 20,
     },
     userContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
         padding: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: '#c9c9c9',
+    },
+    profileContainer: {
+        flexDirection: 'row',  // Ensure image and text are in the same row
+        alignItems: 'center',  // Align items vertically in the center
     },
     usernameText: {
         fontSize: 18,
-        fontFamily: 'Helvetica',
+        fontFamily: 'Trebuchet MS',
+    },
+    profileImage: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        marginRight: 10,
+    },
+    acceptButton: {
+        backgroundColor: 'green',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 15,
     },
     acceptText: {
-        color: 'green',
+        color: 'white',
+        fontFamily: 'Trebuchet MS',
     },
 });
+
 
 export default PendingRequestsScreen;

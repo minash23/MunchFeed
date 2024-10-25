@@ -26,6 +26,7 @@ type Post = {
     caption: string;
     timestamp: number;
     userName: string;
+    profileImage?: string;
 };
 
 type NavigationProps = {
@@ -37,6 +38,7 @@ export default function MainPage() {
     const [userName, setUserName] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(true);
     const [image, setImage] = useState<string>('');
+    const [profileImage, setProfileImage] = useState<string>('');
     const [imageName, setImageName] = useState<string>('');
     const [caption, setCaption] = useState<string>('');
     const [currentPost, setCurrentPost] = useState<Post | null>(null);
@@ -66,6 +68,7 @@ export default function MainPage() {
                 const userData = snapshot.val();
                 if (isMounted) {
                     setUserName(userData.username || '');
+                    setProfileImage(userData.profileImage || '');
                 }
 
                 // Fetch user's post
@@ -253,6 +256,12 @@ export default function MainPage() {
                     {currentPost && !image && (
                         <View style={styles.postCard}>
                             <View style={styles.postHeader}>
+                                {currentPost.profileImage ? (
+                                    <Image
+                                        source={{ uri: currentPost.profileImage }}
+                                        style={styles.profileImage}
+                                    />
+                                ) : null}
                                 <Text style={styles.userName}>{currentPost.userName}</Text>
                                 <Text style={styles.timestamp}>
                                     {new Date(currentPost.timestamp).toLocaleDateString()}
@@ -396,6 +405,13 @@ const styles = StyleSheet.create({
     userName: {
         fontWeight: 'bold',
         fontSize: 16,
+        fontFamily: 'Trebuchet MS'
+    },
+    profileImage: {
+      width: 40,
+      height: 40,
+      borderRadius: 25,
+      marginRight: 10
     },
     timestamp: {
         color: '#666',
