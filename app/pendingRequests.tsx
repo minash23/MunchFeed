@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import {View, Text, FlatList, TouchableOpacity, StyleSheet, Image, ScrollView} from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, database } from '../config/firebaseConfig';
 import { ref, get, set } from 'firebase/database';
+// @ts-ignore
+import defaultPFP from '../assets/images/defaultPFP.png';
 
 type User = {
     id: string;
@@ -24,22 +26,32 @@ const PendingRequestsScreen = () => {
         const currentUserId = auth.currentUser?.uid;
         if (!currentUserId) return;
 
+        // Get current user's friend requests
         const friendRequestsRef = ref(database, `users/${currentUserId}/friendRequests`);
         const snapshot = await get(friendRequestsRef);
 
         if (snapshot.exists()) {
+            const requestUserIds = Object.keys(snapshot.val());
+
+            // Fetch details of each user who sent a request
             const requests = await Promise.all(
-                Object.keys(snapshot.val()).map(async (userId: string) => {
+                requestUserIds.map(async (userId: string) => {
                     const userRef = ref(database, `users/${userId}`);
                     const userSnapshot = await get(userRef);
-                    return {
-                        id: userId,
-                        username: userSnapshot.val().username,
-                        profileImage: userSnapshot.val().profileImage,
-                    };
+
+                    if (userSnapshot.exists()) {
+                        return {
+                            id: userId,
+                            username: userSnapshot.val().username,
+                            profileImage: userSnapshot.val().profileImage,
+                        };
+                    }
+                    return null;
                 })
             );
-            setPendingRequests(requests);
+
+            // Filter out null values
+            setPendingRequests(requests.filter((user) => user !== null));
         } else {
             setPendingRequests([]);
         }
@@ -54,18 +66,27 @@ const PendingRequestsScreen = () => {
         const snapshot = await get(friendsRef);
 
         if (snapshot.exists()) {
+            const friendIds = Object.keys(snapshot.val());
+
+            // Fetch details of each friend
             const friendsList = await Promise.all(
-                Object.keys(snapshot.val()).map(async (friendId: string) => {
+                friendIds.map(async (friendId: string) => {
                     const friendRef = ref(database, `users/${friendId}`);
                     const friendSnapshot = await get(friendRef);
-                    return {
-                        id: friendId,
-                        username: friendSnapshot.val().username,
-                        profileImage: friendSnapshot.val().profileImage
-                    };
+
+                    if (friendSnapshot.exists()) {
+                        return {
+                            id: friendId,
+                            username: friendSnapshot.val().username,
+                            profileImage: friendSnapshot.val().profileImage,
+                        };
+                    }
+                    return null;
                 })
             );
-            setFriends(friendsList);
+
+            // Filter out null values
+            setFriends(friendsList.filter((user) => user !== null));
         } else {
             setFriends([]);
         }
@@ -101,50 +122,49 @@ const PendingRequestsScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-                <Text style={styles.headerText}>Pending Friend Requests</Text>
+            <Text style={styles.headerText}>Pending Friend Requests</Text>
 
-                <FlatList
-                    data={pendingRequests}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                        <View style={styles.userContainer}>
-                            <View style={styles.profileContainer}>
-                                <Image
-                                    source={{ uri: item.profileImage }}
-                                    style={styles.profileImage}
-                                />
-                                <Text style={styles.usernameText}>{item.username}</Text>
-                            </View>
-                            <TouchableOpacity
-                                onPress={() => handleAcceptFriendRequest(item.id)}
-                                style={styles.acceptButton}
-                            >
-                                <Text style={styles.acceptText}>Accept</Text>
-                            </TouchableOpacity>
+            <FlatList
+                data={pendingRequests}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                    <View style={styles.userContainer}>
+                        <View style={styles.profileContainer}>
+                            <Image
+                                source={item.profileImage ? { uri: item.profileImage } : defaultPFP}
+                                style={styles.profileImage}
+                            />
+                            <Text style={styles.usernameText}>{item.username}</Text>
                         </View>
-                    )}
-                />
+                        <TouchableOpacity
+                            onPress={() => handleAcceptFriendRequest(item.id)}
+                            style={styles.acceptButton}
+                        >
+                            <Text style={styles.acceptText}>Accept</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            />
 
-                <Text style={styles.headerText}>Your Friends</Text>
+            <Text style={styles.headerText}>Your Friends</Text>
 
-                <FlatList
-                    data={friends}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                        <View style={styles.userContainer}>
-                            <View style={styles.profileContainer}>
-                                <Image
-                                    source={{ uri: item.profileImage }}
-                                    style={styles.profileImage}
-                                />
-                                <Text style={styles.usernameText}>{item.username}</Text>
-                            </View>
+            <FlatList
+                data={friends}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                    <View style={styles.userContainer}>
+                        <View style={styles.profileContainer}>
+                            <Image
+                                source={item.profileImage ? { uri: item.profileImage } : defaultPFP}
+                                style={styles.profileImage}
+                            />
+                            <Text style={styles.usernameText}>{item.username}</Text>
                         </View>
-                    )}
-                />
+                    </View>
+                )}
+            />
         </SafeAreaView>
     );
-
 };
 
 const styles = StyleSheet.create({
@@ -152,9 +172,6 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
         backgroundColor: 'white',
-    },
-    scrollContainer: {
-        flexGrow: 1,
     },
     headerText: {
         fontSize: 24,
@@ -186,7 +203,7 @@ const styles = StyleSheet.create({
     },
     acceptButton: {
         backgroundColor: 'green',
-        paddingHorizontal: 16,
+        paddingHorizontal: 15,
         paddingVertical: 8,
         borderRadius: 15,
     },
@@ -195,6 +212,5 @@ const styles = StyleSheet.create({
         fontFamily: 'Trebuchet MS',
     },
 });
-
 
 export default PendingRequestsScreen;

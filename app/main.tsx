@@ -291,7 +291,7 @@ export default function MainPage() {
         <SafeAreaView style={styles.container}>
             {/* Header with logo */}
             <View style={styles.header}>
-                <Image source={require('../assets/images/adaptive-icon.png')} style={styles.logo} />
+                <Image source={require('../assets/images/colorLogo.png')} style={styles.logo} />
             </View>
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>

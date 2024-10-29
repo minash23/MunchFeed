@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';  // Import useNavigation hook
 import { auth, database } from '../config/firebaseConfig';
 import { ref, get, set } from 'firebase/database';
+// @ts-ignore
+import defaultPFP from '../assets/images/defaultPFP.png';
 
 type User = {
     id: string;
@@ -80,9 +82,9 @@ const AddFriends = () => {
                 renderItem={({ item }) => (
                     <View style={styles.userContainer}>
                         <Image
-                            source = {{uri: item.profileImage}}
+                            source={item.profileImage ? { uri: item.profileImage } : defaultPFP}
                             style={styles.profileImage}
-                            />
+                        />
                         <View style={styles.userInfo}>
                             <Text style={styles.nameText}>{item.firstname} {item.lastname}</Text>
                             <Text style={styles.usernameText}>{item.username}</Text>
