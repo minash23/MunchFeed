@@ -19,6 +19,8 @@ import { auth } from '../config/firebaseConfig';
 import { getDatabase, ref, set, get, remove } from "firebase/database";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useNavigation } from '@react-navigation/native';
+// @ts-ignore
+import defaultPFP from '../assets/images/defaultPFP.png';  // Import the default profile picture
 
 // Define types for TypeScript
 type Post = {
@@ -291,7 +293,7 @@ export default function MainPage() {
         <SafeAreaView style={styles.container}>
             {/* Header with logo */}
             <View style={styles.header}>
-                <Image source={require('../assets/images/colorLogo.png')} style={styles.logo} />
+                <Image source={require('../assets/images/blackLogo.png')} style={styles.logo} />
             </View>
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -347,14 +349,10 @@ export default function MainPage() {
                         <View style={styles.postCard}>
                             <View style={styles.postHeader}>
                                 <View style={styles.userInfo}>
-                                    {currentPost.profileImage ? (
-                                        <Image
-                                            source={{ uri: currentPost.profileImage }}
-                                            style={styles.profileImage}
-                                        />
-                                    ) : (
-                                        <View style={styles.profileImagePlaceholder} />
-                                    )}
+                                    <Image
+                                        source={currentPost.profileImage ? { uri: currentPost.profileImage } : defaultPFP}
+                                        style={styles.profileImage}
+                                    />
                                     <Text style={styles.userName}>{currentPost.userName}</Text>
                                 </View>
                                 <Text style={styles.timestamp}>

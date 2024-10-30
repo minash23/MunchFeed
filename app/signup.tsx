@@ -7,7 +7,7 @@ import { auth } from '../config/firebaseConfig';
 import { useNavigation } from '@react-navigation/native';
 import Logo from '../assets/images/adaptive-icon.png';
 import MunchFeed from '../assets/images/MunchFeed.png';
-
+import splash from '../assets/images/splash.png';
 export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -59,8 +59,7 @@ export default function SignupPage() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={Logo} style={styles.logo} />
-        <Image source={MunchFeed} style={styles.munchfeed} />
+        <Image source={splash} style={styles.logo} />
       </View>
 
       <TextInput
@@ -106,12 +105,13 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
     bottom: 75,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+      marginBottom: -100,
   },
   logo: {
-    width: 200,
-    height: 300,
+    width: 400,
+    height: 400,
   },
   munchfeed: {
     width: 200,

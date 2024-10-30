@@ -15,10 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../config/firebaseConfig'; // Adjust the import path if needed
 import { useNavigation } from '@react-navigation/native';
-
-// Importing images properly
-import Logo from '../assets/images/adaptive-icon.png';
-import MunchFeed from '../assets/images/MunchFeed.png';
+// @ts-ignore
+import splash from '../assets/images/splash.png';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -55,8 +53,7 @@ export default function LoginPage() {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <SafeAreaView style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image source={Logo} style={styles.logo} />
-        <Image source={MunchFeed} style={styles.munchfeed} />
+        <Image source={splash} style={styles.logo} />
       </View>
       <Text style={styles.title}>Login</Text>
       <TextInput
@@ -93,10 +90,11 @@ const styles = StyleSheet.create({
     bottom: 100,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: -100,
   },
   logo: {
-    width: 200,
-    height: 300,
+    width: 400,
+    height: 400,
   },
   munchfeed: {
     width: 200,
