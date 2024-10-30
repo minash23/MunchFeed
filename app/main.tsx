@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { auth } from '../config/firebaseConfig';
-import { getDatabase, ref, set, get, remove } from "firebase/database";
+import { getDatabase, ref, set, get, remove, onValue } from "firebase/database";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useNavigation } from '@react-navigation/native';
 // @ts-ignore
@@ -50,6 +50,7 @@ export default function MainPage() {
     const [caption, setCaption] = useState<string>('');
     const [currentPost, setCurrentPost] = useState<Post | null>(null);
     const [canPost, setCanPost] = useState<boolean>(true);
+    const [posts, setPosts] = useState<Post[]>([]);
     const navigation = useNavigation<NavigationProps>();
 
     // Function to delete expired posts
@@ -125,6 +126,30 @@ export default function MainPage() {
                     } else {
                         setCurrentPost(post);
                         setCanPost(false);
+                    }
+                }
+
+                // Fetch friends' posts
+                const friendsRef = ref(database, `users/${user.uid}/friends`);
+                const friendsSnapshot = await get(friendsRef);
+
+                if (friendsSnapshot.exists() && isMounted) {
+                    const friendIds = Object.keys(friendsSnapshot.val());
+                    const friendPosts: Post[] = [];
+
+                    // Fetch posts for each friend
+                    for (const friendId of friendIds) {
+                        const friendPostRef = ref(database, `posts/${friendId}`);
+                        const friendPostSnapshot = await get(friendPostRef);
+
+                        if (friendPostSnapshot.exists()) {
+                            const friendPost = friendPostSnapshot.val();
+                            friendPosts.push(friendPost);
+                        }
+                    }
+
+                    if (isMounted) {
+                        setPosts(friendPosts);
                     }
                 }
             } catch (error) {
@@ -375,6 +400,38 @@ export default function MainPage() {
                             </TouchableOpacity>
                         </View>
                     )}
+
+                    {/* Display friends' posts */}
+                    {posts.map((post, index) => (
+                        <View key={index} style={styles.postCard}>
+                            <View style={styles.postHeader}>
+                                <View style={styles.userInfo}>
+                                    <Image
+                                        source={post.profileImage ? { uri: post.profileImage } : defaultPFP}
+                                        style={styles.profileImage}
+                                    />
+                                    <Text style={styles.userName}>{post.userName}</Text>
+                                </View>
+                                <Text style={styles.timestamp}>
+                                    {new Date(post.timestamp).toLocaleDateString()}
+                                </Text>
+                            </View>
+                            <Image
+                                source={{ uri: post.imageUrl }}
+                                style={styles.postImage}
+                                resizeMode="cover"
+                            />
+                            {post.caption ? (
+                                <Text style={styles.caption}>{post.caption}</Text>
+                            ) : null}
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('Comments', { postId: post.userName })}
+                                style={styles.commentButton}
+                            >
+                                <Text style={styles.commentButtonText}>View comments</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ))}
                 </ScrollView>
             </TouchableWithoutFeedback>
 
