@@ -5,8 +5,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { getDatabase, ref, set } from 'firebase/database';
 import { auth } from '../config/firebaseConfig';
 import { useNavigation } from '@react-navigation/native';
-import Logo from '../assets/images/adaptive-icon.png';
-import MunchFeed from '../assets/images/MunchFeed.png';
+// @ts-ignore
 import splash from '../assets/images/splash.png';
 export default function SignupPage() {
   const [name, setName] = useState('');

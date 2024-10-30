@@ -59,32 +59,31 @@ export default function CommentsPage() {
     // fetch comments and commenter's details
     useEffect(() => {
         const fetchComments = async () => {
-            const commentsRef = ref(database, 'comments');
+            const commentsRef = ref(database, `comments/${postId}`);
             onValue(commentsRef, async (snapshot) => {
                 if (snapshot.exists()) {
                     const commentsData: Comment[] = [];
-                    const commentersData = snapshot.val();
+                    const commentSnapshots = snapshot.val();
 
-                    // Loop through each commenter
-                    for (let commenterId in commentersData) {
-                        // Get the commenter's user data
-                        const userRef = ref(database, `users/${commenterId}`);
+                    // Process each comment
+                    for (let key in commentSnapshots) {
+                        const comment = commentSnapshots[key];
+                        // Fetch the commenter's user data
+                        const userRef = ref(database, `users/${comment.userId}`);
                         const userSnapshot = await get(userRef);
-                        const userData = userSnapshot.val();
 
-                        // Loop through all comments by this commenter
-                        const commenterComments = commentersData[commenterId];
-                        for (let commentId in commenterComments) {
-                            const comment = commenterComments[commentId];
+                        if (userSnapshot.exists()) {
+                            const userData = userSnapshot.val();
                             commentsData.push({
                                 ...comment,
-                                userName: userData.username,
-                                userProfileImage: userData.profileImage
+                                userName: userData.username, // Using username from user data
+                                userProfileImage: userData.profileImage // Using profile image from user data
                             });
                         }
                     }
-
                     setComments(commentsData);
+                } else {
+                    setComments([]);
                 }
             });
         };
@@ -95,17 +94,20 @@ export default function CommentsPage() {
     // Function to handle posting comments
     const postComment = async () => {
         const userId = auth.currentUser?.uid;
-        const username = auth.currentUser?.displayName;
-        const userProfileImage = auth.currentUser?.photoURL;
         if (userId && commentText) {
-            const newCommentRef = push(ref(database, `comments/${postId}`));
-            await set(newCommentRef, {
-                userId,
-                username,
-                userProfileImage,
-                text: commentText,
-            });
-            setCommentText(''); // Clear the input after posting
+            // Get the current user's data
+            const userRef = ref(database, `users/${userId}`);
+            const userSnapshot = await get(userRef);
+
+            if (userSnapshot.exists()) {
+                const userData = userSnapshot.val();
+                const newCommentRef = push(ref(database, `comments/${postId}`));
+                await set(newCommentRef, {
+                    userId,
+                    text: commentText,
+                });
+                setCommentText(''); // Clear the input after posting
+            }
         } else {
             alert('Please log in to enter a comment!');
         }
@@ -114,12 +116,12 @@ export default function CommentsPage() {
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={'padding'}
             keyboardVerticalOffset={100}
         >
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <SafeAreaView style={styles.container}>
-                    <ScrollView contentContainerStyle={styles.scrollViewContent}>
+
                         {/* Post Owner's Details */}
                         <View style={styles.postOwnerContainer}>
                             {postOwnerProfile ? (
@@ -134,6 +136,7 @@ export default function CommentsPage() {
                             </View>
                         </View>
                         {/* Comments Section */}
+                    <ScrollView contentContainerStyle={styles.scrollViewContent}>
                         {comments.length > 0 ? comments.map((comment, index) => (
                             <View key={index} style={styles.commentContainer}>
                                 {comment.userProfileImage ? (
