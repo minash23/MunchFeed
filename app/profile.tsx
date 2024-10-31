@@ -16,6 +16,7 @@ export default function ProfilePage() {
     const [email, setEmail] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [birthday, setBirthday] = useState('');
+    const [birthdayError, setBirthdayError] = useState('');
     const navigation = useNavigation();
 
     useEffect(() => {
@@ -48,23 +49,17 @@ export default function ProfilePage() {
         fetchUserData();
     }, []);
 
-    const uploadProfileImage = async (uri: string) =>{
+    const uploadProfileImage = async (uri: string) => {
         const user = auth.currentUser;
         if(!user) {
             return;
         }
         try {
-            // create reference for firebase storage
             const imageRef = storageRef(storage, `profileImages/${user.uid}`);
-            //convert local to blob
             const response = await fetch(uri);
             const blob = await response.blob();
-            //upload image
             await uploadBytes(imageRef, blob);
-
-            //downloadURL
             const downloadURL = await getDownloadURL(imageRef);
-
             return downloadURL;
         }
         catch (error) {
@@ -91,6 +86,32 @@ export default function ProfilePage() {
         }
     };
 
+    const handleBirthdayChange = (text) => {
+        const cleanedText = text.replace(/\D/g, '');
+        let formattedDate = cleanedText;
+        if (cleanedText.length >= 2) {
+            formattedDate = cleanedText.slice(0, 2) + '/' + cleanedText.slice(2);
+        }
+        if (cleanedText.length >= 4) {
+            formattedDate = formattedDate.slice(0, 5) + '/' + cleanedText.slice(4);
+        }
+        if (formattedDate.length <= 10) {
+            setBirthday(formattedDate);
+            if (cleanedText.length === 8) {
+                const month = parseInt(cleanedText.slice(0, 2));
+                const day = parseInt(cleanedText.slice(2, 4));
+                const year = parseInt(cleanedText.slice(4, 8));
+                const isValidMonth = month >= 1 && month <= 12;
+                const isValidDay = day >= 1 && day <= 31;
+                const isValidYear = year >= 1900 && year <= new Date().getFullYear();
+                if (!isValidMonth) setBirthdayError('Invalid month');
+                else if (!isValidDay) setBirthdayError('Invalid day');
+                else if (!isValidYear) setBirthdayError('Invalid year');
+                else setBirthdayError('');
+            }
+        }
+    };
+
     const saveUserProfile = async () => {
         try {
             const user = auth.currentUser;
@@ -99,22 +120,15 @@ export default function ProfilePage() {
                 return;
             }
 
-
-            let profileImageUrl = profileImage; // This holds the URL that will be saved in the database
+            let profileImageUrl = profileImage;
             if (profileImage && profileImage.startsWith('file://')) {
-                // Only upload if a new local image has been selected
-                const response = await fetch(profileImage); // Fetch the image from the local file system
-                const blob = await response.blob(); // Convert it to a blob for Firebase upload
-
-                // Reference for storage location
-                const imageRef = storageRef(storage, `profileImages/${user.uid}`); // Storage path for the user's profile image
-                await uploadBytes(imageRef, blob); // Upload the image to Firebase Storage
-
-                // Get the downloadable URL for the uploaded image
+                const response = await fetch(profileImage);
+                const blob = await response.blob();
+                const imageRef = storageRef(storage, `profileImages/${user.uid}`);
+                await uploadBytes(imageRef, blob);
                 profileImageUrl = await getDownloadURL(imageRef);
             }
 
-            // Save the user data, including the profileImageUrl, to Firebase Realtime Database
             const userRef = ref(database, 'users/' + user.uid);
             await set(userRef, {
                 username,
@@ -125,7 +139,7 @@ export default function ProfilePage() {
                 email,
                 phoneNumber,
                 birthday,
-                profileImage: profileImageUrl // Save the URL instead of the local path
+                profileImage: profileImageUrl
             });
 
             alert('Profile Saved!');
@@ -172,8 +186,16 @@ export default function ProfilePage() {
                         <Text style={styles.field}>Phone Number:</Text>
                         <TextInput style={styles.input} value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" />
 
-                        <Text style={styles.field}>Birthday:</Text>
-                        <TextInput style={styles.input} value={birthday} onChangeText={setBirthday} />
+                        <Text style={styles.field}>Birthday (MM/DD/YYYY):</Text>
+                        <TextInput
+                            style={[styles.input, birthdayError ? styles.inputError : null]}
+                            value={birthday}
+                            onChangeText={handleBirthdayChange}
+                            placeholder="MM/DD/YYYY"
+                            keyboardType="numeric"
+                            maxLength={10}
+                        />
+                        {birthdayError ? <Text style={styles.errorText}>{birthdayError}</Text> : null}
                     </View>
 
                     <Button title="SAVE" onPress={saveUserProfile} />
@@ -235,6 +257,15 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderRadius: 5,
         paddingHorizontal: 10,
+        marginBottom: 10,
+    },
+    inputError: {
+        borderColor: 'red',
+    },
+    errorText: {
+        color: 'red',
+        fontSize: 12,
+        marginTop: -8,
         marginBottom: 10,
     },
 });
