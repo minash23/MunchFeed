@@ -11,96 +11,19 @@ import PendingRequestsScreen from "@/app/pendingRequests";
 
 const Stack = createStackNavigator();
 
-const screenOptions = {
-    headerStyle: {
-        backgroundColor: '#ffffff',
-        elevation: 0, // Android
-        shadowOpacity: 0, // iOS
-        borderBottomWidth: 0,
-    },
-    headerTitleStyle: {
-        fontWeight: '600',
-        color: '#1F2937',
-    },
-    headerTitleAlign: 'center' as const,
-    headerBackTitleVisible: false,
-    headerTintColor: '#6366F1', // Back button color
-};
-
-const noHeaderScreens = {
-    headerShown: false,
-};
-
 export default function App() {
-    return (
-        <NavigationContainer independent={true}>
-            <Stack.Navigator
-                initialRouteName="SignUp"
-                screenOptions={screenOptions}
-            >
-                <Stack.Screen
-                    name="Login"
-                    component={LoginPage}
-                    options={noHeaderScreens}
-                />
+  return (
+  <NavigationContainer independent={true}>
+      <Stack.Navigator initialRouteName= "SignUp">
+        <Stack.Screen name="Login" component={LoginPage} />
+        <Stack.Screen name="Profile" component={ProfilePage} />
+        <Stack.Screen name = "AddFriends" component ={addFriendsPage} />
+          <Stack.Screen name = "PendingRequests" component ={PendingRequestsScreen} />
+        <Stack.Screen name = "Main" component = {MainPage} />
+        <Stack.Screen name = "Comments" component = {CommentsPage}  />
+        <Stack.Screen name = "SignUp" component = {signUpPage} />
 
-                <Stack.Screen
-                    name="SignUp"
-                    component={signUpPage}
-                    options={noHeaderScreens}
-                />
-
-                <Stack.Screen
-                    name="Main"
-                    component={MainPage}
-                    options={noHeaderScreens}
-                />
-
-                <Stack.Screen
-                    name="Profile"
-                    component={ProfilePage}
-                    options={{
-                        title: 'Profile',
-                        headerStyle: {
-                            backgroundColor: '#ffffff',
-                        },
-                    }}
-                />
-
-                <Stack.Screen
-                    name="AddFriends"
-                    component={addFriendsPage}
-                    options={{
-                        title: 'Add Friends',
-                        headerStyle: {
-                            backgroundColor: '#ffffff',
-                        },
-                    }}
-                />
-
-                <Stack.Screen
-                    name="PendingRequests"
-                    component={PendingRequestsScreen}
-                    options={{
-                        title: 'Pending Requests',
-                        headerStyle: {
-                            backgroundColor: '#ffffff',
-                        },
-                    }}
-                />
-
-                <Stack.Screen
-                    name="Comments"
-                    component={CommentsPage}
-                    options={{
-                        title: 'Comments',
-                        headerStyle: {
-                            backgroundColor: '#ffffff',
-                        },
-                    }}
-                />
-
-            </Stack.Navigator>
-        </NavigationContainer>
-    );
+      </Stack.Navigator>
+   </NavigationContainer>
+  );
 }

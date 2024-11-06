@@ -95,10 +95,13 @@ const AddFriends = () => {
                 setSuggestedFriends([]);
                 return;
             }
+            const friendsRef = ref(database, `users/${currentUserId}/friends`);
+            const friendsSnapshot = await get(friendsRef);
+            const friends = friendsSnapshot.exists() ? Object.keys(friendsSnapshot.val()) : [];
 
             const allUsers = snapshot.val();
             const suggestions = Object.entries(allUsers)
-                .filter(([userId, _]) => userId !== currentUserId)
+                .filter(([userId, _]) => userId !== currentUserId && !friends.includes(userId))
                 .map(([userId, userData]: [string, any]) => ({
                     id: userId,
                     pfp: userData.profileImage,
@@ -107,7 +110,7 @@ const AddFriends = () => {
                     lastname: userData.lastName,
                     profileImage: userData.profileImage,
                 }))
-                .slice(0, 10); // Increased to show more suggestions
+                .slice(0, 10);
 
             setSuggestedFriends(suggestions);
         } catch (error) {
