@@ -49,7 +49,99 @@ interface PostDetails {
 
 const COMMENTS_PER_PAGE = 20;
 
-export default function CommentsPage() {
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    inner: {
+        flex: 1,
+    },
+    scrollViewContent: {
+        paddingBottom: 20,
+    },
+    postDetailsContainer: {
+        marginBottom: 20,
+    },
+    postImage: {
+        width: '100%',
+        height: 300,
+        resizeMode: 'cover',
+    },
+    postCaption: {
+        fontSize: 16,
+        padding: 10,
+    },
+    commentContainer: {
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+    },
+    commentHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    commentUserImage: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        marginRight: 10,
+    },
+    commentUserName: {
+        fontWeight: 'bold',
+    },
+    commentTimestamp: {
+        fontSize: 12,
+        color: '#888',
+        marginLeft: 10,
+    },
+    commentText: {
+        marginVertical: 10,
+        fontSize: 14,
+    },
+    commentActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    likeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    likeCount: {
+        marginLeft: 5,
+    },
+    deleteButton: {
+        backgroundColor: 'red',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: 10,
+    },
+    commentInputContainer: {
+        flexDirection: 'row',
+        padding: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#ddd',
+    },
+    commentInput: {
+        flex: 1,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#f0f0f0',
+        paddingLeft: 15,
+        marginRight: 10,
+    },
+    postButton: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        backgroundColor: '#4CAF50',
+        borderRadius: 50,
+    },
+});
+
+function CommentsPage() {
     const [commentText, setCommentText] = useState('');
     const [comments, setComments] = useState<Comment[]>([]);
     const [postOwnerName, setPostOwnerName] = useState('');
@@ -190,176 +282,187 @@ export default function CommentsPage() {
 
         try {
             const commentRef = ref(database, `comments/${postId}/${commentId}`);
-            const snapshot = await get(commentRef);
+const snapshot = await get(commentRef);
 
-            if (snapshot.exists()) {
-                const comment = snapshot.val();
-                const likedBy = comment.likedBy || {};
-                const hasLiked = likedBy[currentUserId];
+if (snapshot.exists()) {
+    const comment = snapshot.val();
+    const likedBy = comment.likedBy || {};
+    const hasLiked = likedBy[currentUserId];
 
-                await update(commentRef, {
-                    likes: (comment.likes || 0) + (hasLiked ? -1 : 1),
-                    [`likedBy/${currentUserId}`]: !hasLiked
-                });
-            }
-        } catch (error) {
-            console.error('Error liking comment:', error);
-            Alert.alert('Error', 'Failed to like comment');
-        }
-    };
+    await update(commentRef, {
+        likes: (comment.likes || 0) + (hasLiked ? -1 : 1),
+        [`likedBy/${currentUserId}`]: !hasLiked
+    });
+}
+} catch (error) {
+    console.error('Error liking comment:', error);
+    Alert.alert('Error', 'Failed to like comment');
+}
+};
 
-    const deleteComment = async (commentId: string, userId: string) => {
-        if (currentUserId !== userId && currentUserId !== postDetails?.userId) {
-            Alert.alert('Error', 'You cannot delete this comment');
-            return;
-        }
+const deleteComment = async (commentId: string, userId: string) => {
+    // Only allow users to delete their own comments
+    if (currentUserId !== userId) {
+        Alert.alert('Error', 'You can only delete your own comments');
+        return;
+    }
 
-        Alert.alert(
-            'Delete Comment',
-            'Are you sure you want to delete this comment?',
-            [
-                {
-                    text: 'Cancel',
-                    style: 'cancel'
-                },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await remove(ref(database, `comments/${postId}/${commentId}`));
-                        } catch (error) {
-                            console.error('Error deleting comment:', error);
-                            Alert.alert('Error', 'Failed to delete comment');
-                        }
+    Alert.alert(
+        'Delete Comment',
+        'Are you sure you want to delete this comment?',
+        [
+            {
+                text: 'Cancel',
+                style: 'cancel'
+            },
+            {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await remove(ref(database, `comments/${postId}/${commentId}`));
+                    } catch (error) {
+                        console.error('Error deleting comment:', error);
+                        Alert.alert('Error', 'Failed to delete comment');
                     }
                 }
-            ]
-        );
-    };
-
-    const postComment = async () => {
-        if (!commentText.trim()) return;
-
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-            Alert.alert('Error', 'Please log in to comment');
-            return;
-        }
-
-        setIsPosting(true);
-        try {
-            const userRef = ref(database, `users/${userId}`);
-            const userSnapshot = await get(userRef);
-
-            if (userSnapshot.exists()) {
-                const newCommentRef = push(ref(database, `comments/${postId}`));
-                await set(newCommentRef, {
-                    userId,
-                    text: commentText.trim(),
-                    timestamp: Date.now(),
-                    likes: 0,
-                    likedBy: {}
-                });
-                setCommentText('');
-                Keyboard.dismiss();
             }
-        } catch (error) {
-            console.error('Error posting comment:', error);
-            Alert.alert('Error', 'Failed to post comment');
-        } finally {
-            setIsPosting(false);
-        }
-    };
-
-    const onRefresh = () => {
-        setRefreshing(true);
-        setPage(1);
-        fetchPostDetails();
-        fetchComments(true);
-    };
-
-    const renderRightActions = (commentId: string, userId: string) => {
-        if (currentUserId !== userId && currentUserId !== postDetails?.userId) return null;
-
-        return (
-            <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => deleteComment(commentId, userId)}
-            >
-                <Ionicons name="trash-outline" size={24} color="white" />
-            </TouchableOpacity>
-        );
-    };
-
-    const renderCommentItem = (comment: Comment) => (
-        <Swipeable
-            key={comment.id}
-            renderRightActions={() => renderRightActions(comment.id!, comment.userId)}
-            overshootRight={false}
-        >
-            <View style={styles.commentContainer}>
-                <View style={styles.commentHeader}>
-                    <Image
-                        source={{ uri: comment.userProfileImage || 'https://www.example.com/default-profile-image.png' }}
-                        style={styles.commentUserImage}
-                    />
-                    <Text style={styles.commentUserName}>{comment.userName}</Text>
-                    <Text style={styles.commentTimestamp}>
-                        {formatTimestamp(comment.timestamp!)}
-                    </Text>
-                </View>
-                <Text style={styles.commentText}>{comment.text}</Text>
-                <View style={styles.commentActions}>
-                    <TouchableOpacity
-                        onPress={() => likeComment(comment.id!)}
-                        style={styles.likeButton}
-                    >
-                        <Ionicons name={comment.likedBy?.[currentUserId] ? 'heart' : 'heart-outline'} size={20} color="red" />
-                        <Text style={styles.likeCount}>{comment.likes}</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Swipeable>
+        ]
     );
+};
+
+const postComment = async () => {
+    if (!commentText.trim()) return;
+
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+        Alert.alert('Error', 'Please log in to comment');
+        return;
+    }
+
+    setIsPosting(true);
+    try {
+        const userRef = ref(database, `users/${userId}`);
+        const userSnapshot = await get(userRef);
+
+        if (userSnapshot.exists()) {
+            const newCommentRef = push(ref(database, `comments/${postId}`));
+            await set(newCommentRef, {
+                userId,
+                text: commentText.trim(),
+                timestamp: Date.now(),
+                likes: 0,
+                likedBy: {}
+            });
+            setCommentText('');
+            Keyboard.dismiss();
+        }
+    } catch (error) {
+        console.error('Error posting comment:', error);
+        Alert.alert('Error', 'Failed to post comment');
+    } finally {
+        setIsPosting(false);
+    }
+};
+
+const onRefresh = () => {
+    setRefreshing(true);
+    setPage(1);
+    fetchPostDetails();
+    fetchComments(true);
+};
+
+const renderRightActions = (commentId: string, userId: string) => {
+    // Only show delete option for user's own comments
+    if (currentUserId !== userId) return null;
 
     return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={styles.inner}
-            >
-                <ScrollView
-                    contentContainerStyle={styles.scrollViewContent}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                    }
+        <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => deleteComment(commentId, userId)}
+        >
+            <Ionicons name="trash-outline" size={24} color="white" />
+        </TouchableOpacity>
+    );
+};
+
+const renderCommentItem = (comment: Comment) => (
+    <Swipeable
+        key={comment.id}
+        renderRightActions={() => renderRightActions(comment.id!, comment.userId)}
+        overshootRight={false}
+    >
+        <View style={styles.commentContainer}>
+            <View style={styles.commentHeader}>
+                <Image
+                    source={comment.userProfileImage ?
+                        { uri: comment.userProfileImage } :
+                        require('../assets/images/defaultPFP.png')}
+                    style={styles.commentUserImage}
+                />
+                <Text style={styles.commentUserName}>{comment.userName}</Text>
+                <Text style={styles.commentTimestamp}>
+                    {formatTimestamp(comment.timestamp!)}
+                </Text>
+            </View>
+            <Text style={styles.commentText}>{comment.text}</Text>
+            <View style={styles.commentActions}>
+                <TouchableOpacity
+                    onPress={() => comment.id && likeComment(comment.id)}
+                    style={styles.likeButton}
                 >
-                    {isLoading ? (
-                        <ActivityIndicator size="large" color="#0000ff" />
-                    ) : (
-                        <>
-                            {postDetails && (
-                                <View style={styles.postDetailsContainer}>
-                                    <Image
-                                        source={{ uri: postDetails.imageUrl || 'https://www.example.com/default-image.png' }}
-                                        style={styles.postImage}
-                                    />
-                                    <Text style={styles.postCaption}>{postDetails.caption}</Text>
-                                </View>
-                            )}
+                    <Ionicons
+                        name={comment.likedBy?.[currentUserId || ''] ? 'heart' : 'heart-outline'}
+                        size={20}
+                        color="red"
+                    />
+                    <Text style={styles.likeCount}>{comment.likes}</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    </Swipeable>
+);
 
-                            {comments.length > 0 ? (
-                                comments.map(renderCommentItem)
-                            ) : (
-                                <Text>No comments yet</Text>
-                            )}
+return (
+    <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.inner}
+        >
+            <ScrollView
+                contentContainerStyle={styles.scrollViewContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
+                {isLoading ? (
+                    <ActivityIndicator size="large" color="#0000ff" />
+                ) : (
+                    <>
+                        {postDetails && (
+                            <View style={styles.postDetailsContainer}>
+                                <Image
+                                    source={{ uri: postDetails.imageUrl ||
+                                            require('../assets/images/defaultPFP.png') }}
+                                    style={styles.postImage}
+                                />
+                                <Text style={styles.postCaption}>{postDetails.caption}</Text>
+                            </View>
+                        )}
 
-                            {loadingMore && <ActivityIndicator size="small" color="#0000ff" />}
-                        </>
-                    )}
-                </ScrollView>
-            </KeyboardAvoidingView>
+                        {comments.length > 0 ? (
+                            comments.map(renderCommentItem)
+                        ) : (
+                            <Text style={[styles.commentText, { textAlign: 'center', marginTop: 20 }]}>
+                                No comments yet
+                            </Text>
+                        )}
+
+                        {loadingMore && <ActivityIndicator size="small" color="#0000ff" />}
+                    </>
+                )}
+            </ScrollView>
+
             <View style={styles.commentInputContainer}>
                 <TextInput
                     style={styles.commentInput}
@@ -371,108 +474,20 @@ export default function CommentsPage() {
                     onSubmitEditing={postComment}
                 />
                 {isPosting ? (
-                    <ActivityIndicator size="small" color="#0000ff" />
+                    <ActivityIndicator size="small" color="#4CAF50" />
                 ) : (
                     <TouchableOpacity
                         style={styles.postButton}
                         onPress={postComment}
+                        disabled={!commentText.trim()}
                     >
                         <Ionicons name="send" size={24} color="white" />
                     </TouchableOpacity>
                 )}
             </View>
-        </SafeAreaView>
-    );
+    </KeyboardAvoidingView>
+</SafeAreaView>
+);
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    inner: {
-        flex: 1,
-    },
-    scrollViewContent: {
-        paddingBottom: 20,
-    },
-    postDetailsContainer: {
-        marginBottom: 20,
-    },
-    postImage: {
-        width: '100%',
-        height: 300,
-        resizeMode: 'cover',
-    },
-    postCaption: {
-        fontSize: 16,
-        padding: 10,
-    },
-    commentContainer: {
-        padding: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
-    },
-    commentHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    commentUserImage: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        marginRight: 10,
-    },
-    commentUserName: {
-        fontWeight: 'bold',
-    },
-    commentTimestamp: {
-        fontSize: 12,
-        color: '#888',
-        marginLeft: 10,
-    },
-    commentText: {
-        marginVertical: 10,
-        fontSize: 14,
-    },
-    commentActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    likeButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    likeCount: {
-        marginLeft: 5,
-    },
-    deleteButton: {
-        backgroundColor: 'red',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 10,
-        borderRadius: 10,
-    },
-    commentInputContainer: {
-        flexDirection: 'row',
-        padding: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#ddd',
-    },
-    commentInput: {
-        flex: 1,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f0f0f0',
-        paddingLeft: 15,
-    },
-    postButton: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: 10,
-        padding: 10,
-        backgroundColor: '#4CAF50',
-        borderRadius: 50,
-    },
-});
+export default CommentsPage;
