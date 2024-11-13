@@ -205,6 +205,7 @@ export default function SignupPage() {
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Email"
+                                        placeholderTextColor={'#A9A9A9AC'}
                                         value={email}
                                         onChangeText={setEmail}
                                         keyboardType="email-address"
@@ -300,12 +301,14 @@ const styles = StyleSheet.create({
         paddingBottom: 20,
     },
     title: {
+        fontFamily: 'Trebuchet MS',
         fontSize: 28,
         fontWeight: 'bold',
         color: '#333',
         marginBottom: 8,
     },
     subtitle: {
+        fontFamily: 'Trebuchet MS',
         fontSize: 16,
         color: '#666',
         marginBottom: 30,

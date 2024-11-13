@@ -49,97 +49,7 @@ interface PostDetails {
 
 const COMMENTS_PER_PAGE = 20;
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    inner: {
-        flex: 1,
-    },
-    scrollViewContent: {
-        paddingBottom: 20,
-    },
-    postDetailsContainer: {
-        marginBottom: 20,
-    },
-    postImage: {
-        width: '100%',
-        height: 300,
-        resizeMode: 'cover',
-    },
-    postCaption: {
-        fontSize: 16,
-        padding: 10,
-    },
-    commentContainer: {
-        padding: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ddd',
-    },
-    commentHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    commentUserImage: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        marginRight: 10,
-    },
-    commentUserName: {
-        fontWeight: 'bold',
-    },
-    commentTimestamp: {
-        fontSize: 12,
-        color: '#888',
-        marginLeft: 10,
-    },
-    commentText: {
-        marginVertical: 10,
-        fontSize: 14,
-    },
-    commentActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    likeButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    likeCount: {
-        marginLeft: 5,
-    },
-    deleteButton: {
-        backgroundColor: 'red',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 10,
-        borderRadius: 10,
-    },
-    commentInputContainer: {
-        flexDirection: 'row',
-        padding: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#ddd',
-    },
-    commentInput: {
-        flex: 1,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f0f0f0',
-        paddingLeft: 15,
-        marginRight: 10,
-    },
-    postButton: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 10,
-        backgroundColor: '#4CAF50',
-        borderRadius: 50,
-    },
-});
+
 
 function CommentsPage() {
     const [commentText, setCommentText] = useState('');
@@ -428,6 +338,7 @@ return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.inner}
+            keyboardVerticalOffset={100}
         >
             <ScrollView
                 contentContainerStyle={styles.scrollViewContent}
@@ -442,11 +353,16 @@ return (
                         {postDetails && (
                             <View style={styles.postDetailsContainer}>
                                 <Image
-                                    source={{ uri: postDetails.imageUrl ||
+                                    source={
+                                    { uri: postOwnerProfile ||
                                             require('../assets/images/defaultPFP.png') }}
-                                    style={styles.postImage}
+                                    style={styles.postOwnerPFP}
                                 />
-                                <Text style={styles.postCaption}>{postDetails.caption}</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style ={styles.commentUserName}>{postOwnerName}</Text>
+                                    <Text style={styles.postCaption}>{postDetails.caption}</Text>
+                                </View>
+
                             </View>
                         )}
 
@@ -489,5 +405,116 @@ return (
 </SafeAreaView>
 );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    inner: {
+        flex: 1,
+    },
+    scrollViewContent: {
+        paddingBottom: 20,
+    },
+    postDetailsContainer: {
+        marginBottom: 20,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        padding: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#ddd',
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+    },
+    postOwnerPFP: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 10,
+        marginLeft: -5,
+    },
+    postImage: {
+        width: '100%',
+        height: 300,
+        resizeMode: 'cover',
+    },
+    postCaption: {
+        flex: 1,
+        fontSize: 16,
+        color: '#000',
+        paddingTop: 1,
+        fontWeight: '400',
+        textAlign: 'left',
+        fontFamily: 'Trebuchet MS',
+    },
+    commentContainer: {
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ddd',
+    },
+    commentHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    commentUserImage: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        marginRight: 10,
+    },
+    commentUserName: {
+        fontWeight: 'bold',
+    },
+    commentTimestamp: {
+        fontSize: 12,
+        color: '#888',
+        marginLeft: 10,
+    },
+    commentText: {
+        marginVertical: 10,
+        fontSize: 14,
+    },
+    commentActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    likeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    likeCount: {
+        marginLeft: 5,
+    },
+    deleteButton: {
+        backgroundColor: 'red',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: 10,
+    },
+    commentInputContainer: {
+        flexDirection: 'row',
+        padding: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#ddd',
+    },
+    commentInput: {
+        flex: 1,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#f0f0f0',
+        paddingLeft: 15,
+        marginRight: 10,
+    },
+    postButton: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        backgroundColor: '#4CAF50',
+        borderRadius: 50,
+    },
+});
 
 export default CommentsPage;

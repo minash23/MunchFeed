@@ -124,8 +124,8 @@ export default function LoginPage() {
   return (
       <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? -64 : 0}
+          behavior={"padding"}
+          keyboardVerticalOffset={100}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <SafeAreaView style={styles.container}>
@@ -287,12 +287,14 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   title: {
+    fontFamily: 'Trebuchet MS',
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
   },
   subtitle: {
+    fontFamily: 'Trebuchet MS',
     fontSize: 16,
     color: '#666',
     marginBottom: 20,
