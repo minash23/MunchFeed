@@ -172,6 +172,7 @@ export default function SignupPage() {
                                         <TextInput
                                             style={styles.input}
                                             placeholder="First Name"
+                                            placeholderTextColor={'#A9A9A9AC'}
                                             value={firstName}
                                             onChangeText={setFirstName}
                                             autoCorrect={false}
@@ -182,6 +183,7 @@ export default function SignupPage() {
                                         <TextInput
                                             style={styles.input}
                                             placeholder="Last Name"
+                                            placeholderTextColor={'#A9A9A9AC'}
                                             value={lastName}
                                             onChangeText={setLastName}
                                             autoCorrect={false}
@@ -194,6 +196,7 @@ export default function SignupPage() {
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Username"
+                                        placeholderTextColor={'#A9A9A9AC'}
                                         value={username}
                                         onChangeText={(text) => setUsername(text.toLowerCase())}
                                         autoCapitalize="none"
@@ -218,6 +221,7 @@ export default function SignupPage() {
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Password"
+                                        placeholderTextColor={'#A9A9A9AC'}
                                         value={password}
                                         onChangeText={setPassword}
                                         secureTextEntry={!showPassword}
@@ -237,6 +241,7 @@ export default function SignupPage() {
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Phone Number"
+                                        placeholderTextColor={'#A9A9A9AC'}
                                         value={phoneNumber}
                                         onChangeText={setPhoneNumber}
                                         keyboardType="phone-pad"
@@ -335,6 +340,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingHorizontal: 15,
         fontSize: 16,
+        fontFamily: 'Trebuchet MS',
         backgroundColor: '#f8f8f8',
         width: '100%',
     },
@@ -346,6 +352,7 @@ const styles = StyleSheet.create({
     showPasswordText: {
         color: '#007AFF',
         fontSize: 14,
+        fontFamily: 'Trebuchet MS',
     },
     button: {
         height: 45,
@@ -360,6 +367,7 @@ const styles = StyleSheet.create({
     buttonText: {
         color: 'white',
         fontSize: 16,
+        fontFamily: 'Trebuchet MS',
         fontWeight: '600',
     },
     loginContainer: {
@@ -375,6 +383,7 @@ const styles = StyleSheet.create({
         color: '#007AFF',
         fontSize: 14,
         fontWeight: '600',
+        fontFamily: 'Trebuchet MS',
     },
 });
 

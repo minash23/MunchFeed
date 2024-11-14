@@ -146,6 +146,7 @@ export default function LoginPage() {
                   <TextInput
                       style={styles.input}
                       placeholder="Email"
+                      placeholderTextColor={'#A9A9A9AC'}
                       value={username}
                       onChangeText={setUsername}
                       keyboardType="email-address"
@@ -158,6 +159,7 @@ export default function LoginPage() {
                   <TextInput
                       style={styles.input}
                       placeholder="Password"
+                      placeholderTextColor={'#A9A9A9AC'}
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry={!showPassword}

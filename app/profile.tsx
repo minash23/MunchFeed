@@ -372,12 +372,14 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 22,
         fontWeight: 'bold',
+        fontFamily: 'Trebuchet MS',
         color: '#333',
         marginBottom: 20,
         textAlign: 'center',
     },
     field: {
         fontSize: 16,
+        fontFamily: 'Trebuchet MS',
         color: '#666',
         marginBottom: 8,
     },
@@ -388,6 +390,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingHorizontal: 15,
         fontSize: 16,
+        fontFamily: 'Trebuchet MS',
         backgroundColor: '#f8f8f8',
         marginBottom: 15,
     },

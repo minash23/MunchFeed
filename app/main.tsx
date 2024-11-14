@@ -355,7 +355,7 @@ export default function MainPage() {
                                 returnKeyType="done"
                                 onSubmitEditing={Keyboard.dismiss}
                                 blurOnSubmit={true}
-                                placeholderTextColor="#666"
+                                placeholderTextColor={'#A9A9A9AC'}
                             />
                             <TouchableOpacity
                                 style={styles.postButton}
@@ -463,7 +463,7 @@ export default function MainPage() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: '#fff',
     },
     header: {
         padding: 16,
@@ -483,7 +483,8 @@ const styles = StyleSheet.create({
     },
     welcomeText: {
         fontSize: 28,
-        fontWeight: '700',
+        fontFamily: 'Trebuchet MS',
+        fontWeight: 'bold',
         marginBottom: 24,
         color: '#1F2937',
         letterSpacing: 0.5,
@@ -551,16 +552,19 @@ const styles = StyleSheet.create({
     postButtonText: {
         color: '#fff',
         fontSize: 16,
+        fontFamily: 'Trebuchet MS',
         fontWeight: '600',
     },
     postCard: {
+        width: width,
+        alignSelf: 'center',
         backgroundColor: '#fff',
         borderRadius: 16,
-        padding: 16,
+        padding: 12,
         marginBottom: 24,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.05,
         shadowRadius: 4,
         elevation: 2,
     },
@@ -589,6 +593,7 @@ const styles = StyleSheet.create({
     },
     userName: {
         fontSize: 16,
+        fontFamily: 'Trebuchet MS',
         fontWeight: '600',
         color: '#1F2937',
     },
@@ -604,6 +609,7 @@ const styles = StyleSheet.create({
     },
     caption: {
         fontSize: 16,
+        fontFamily: 'Trebuchet MS',
         color: '#374151',
         lineHeight: 24,
         marginBottom: 12,
@@ -614,6 +620,7 @@ const styles = StyleSheet.create({
     },
     commentButtonText: {
         color: '#007BFF',
+        fontFamily: 'Trebuchet MS',
     },
     bottomNav: {
         flexDirection: 'row',

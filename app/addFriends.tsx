@@ -157,7 +157,7 @@ const AddFriends = () => {
     };
 
     const navigateToProfile = (userId: string) => {
-        navigation.navigate('Profile', { userId });
+        navigation.navigate('ViewProfile', { userId });
     };
 
     const renderEmptyState = () => (

@@ -385,6 +385,7 @@ return (
                     value={commentText}
                     onChangeText={setCommentText}
                     placeholder="Write a comment..."
+                    placeholderTextColor={'#A9A9A9AC'}
                     multiline
                     returnKeyType="send"
                     onSubmitEditing={postComment}
@@ -512,7 +513,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 10,
-        backgroundColor: '#4CAF50',
+        backgroundColor: '#007AFF',
         borderRadius: 50,
     },
 });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { auth, database } from '../config/firebaseConfig';
 import { ref, get, set } from 'firebase/database';
 // @ts-ignore
@@ -15,6 +16,7 @@ type User = {
 const PendingRequestsScreen = () => {
     const [pendingRequests, setPendingRequests] = useState<User[]>([]);
     const [friends, setFriends] = useState<User[]>([]);
+    const navigation = useNavigation();
 
     useEffect(() => {
         fetchPendingRequests();
@@ -51,7 +53,7 @@ const PendingRequestsScreen = () => {
             );
 
             // Filter out null values
-            setPendingRequests(requests.filter((user) => user !== null));
+            setPendingRequests(requests.filter((user) => user !== null) as User[]);
         } else {
             setPendingRequests([]);
         }
@@ -86,7 +88,7 @@ const PendingRequestsScreen = () => {
             );
 
             // Filter out null values
-            setFriends(friendsList.filter((user) => user !== null));
+            setFriends(friendsList.filter((user) => user !== null) as User[]);
         } else {
             setFriends([]);
         }
@@ -120,6 +122,11 @@ const PendingRequestsScreen = () => {
         }
     };
 
+    // Navigate to viewProfile
+    const navigateToProfile = (userId: string) => {
+        navigation.navigate('ViewProfile', { userId });
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <Text style={styles.headerText}>Pending Friend Requests</Text>
@@ -129,13 +136,16 @@ const PendingRequestsScreen = () => {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <View style={styles.userContainer}>
-                        <View style={styles.profileContainer}>
+                        <TouchableOpacity
+                            style={styles.profileContainer}
+                            onPress={() => navigateToProfile(item.id)}
+                        >
                             <Image
                                 source={item.profileImage ? { uri: item.profileImage } : defaultPFP}
                                 style={styles.profileImage}
                             />
                             <Text style={styles.usernameText}>{item.username}</Text>
-                        </View>
+                        </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => handleAcceptFriendRequest(item.id)}
                             style={styles.acceptButton}
@@ -153,13 +163,16 @@ const PendingRequestsScreen = () => {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <View style={styles.userContainer}>
-                        <View style={styles.profileContainer}>
+                        <TouchableOpacity
+                            style={styles.profileContainer}
+                            onPress={() => navigateToProfile(item.id)} // Navigate to viewProfile
+                        >
                             <Image
                                 source={item.profileImage ? { uri: item.profileImage } : defaultPFP}
                                 style={styles.profileImage}
                             />
                             <Text style={styles.usernameText}>{item.username}</Text>
-                        </View>
+                        </TouchableOpacity>
                     </View>
                 )}
             />
@@ -202,7 +215,7 @@ const styles = StyleSheet.create({
         marginRight: 10,
     },
     acceptButton: {
-        backgroundColor: 'green',
+        backgroundColor: '#4CAF50',
         paddingHorizontal: 15,
         paddingVertical: 8,
         borderRadius: 15,

@@ -8,6 +8,7 @@ import signUpPage from './signup';
 import MainPage from './main';
 import CommentsPage from './comments';
 import PendingRequestsScreen from "@/app/pendingRequests";
+import ViewProfile from "@/app/viewProfile";
 
 const Stack = createStackNavigator();
 
@@ -22,6 +23,7 @@ export default function App() {
         <Stack.Screen name = "Main" component = {MainPage} />
         <Stack.Screen name = "Comments" component = {CommentsPage}  />
         <Stack.Screen name = "SignUp" component = {signUpPage} />
+          <Stack.Screen name = "ViewProfile" component = {ViewProfile} />
 
       </Stack.Navigator>
    </NavigationContainer>
