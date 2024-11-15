@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -19,127 +19,226 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { getDatabase, ref, set, get } from 'firebase/database';
 import { auth } from '../config/firebaseConfig';
 import { useNavigation } from '@react-navigation/native';
+import debounce from 'lodash/debounce';
 // @ts-ignore
 import splash from '../assets/images/splash.png';
 
+// Form validation constants
+const VALIDATION_RULES = {
+    USERNAME: {
+        pattern: /^[a-zA-Z0-9_]{3,20}$/,
+        message: 'Username must be 3-20 characters and contain only letters, numbers, and underscores'
+    },
+    EMAIL: {
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        message: 'Please enter a valid email address'
+    },
+    PASSWORD: {
+        pattern: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/,
+        message: 'Password must be at least 8 characters and include letters, numbers, and special characters'
+    },
+    PHONE: {
+        pattern: /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/,
+        message: 'Please enter a valid phone number'
+    }
+};
+
+// Custom input component for reusability
+const FormInput = ({
+                       value,
+                       onChangeText,
+                       placeholder,
+                       secureTextEntry,
+                       keyboardType = 'default',
+                       autoCapitalize = 'none',
+                       error,
+                       showPasswordToggle,
+                       onTogglePassword,
+                       style
+                   }) => (
+    <View style={styles.inputContainer}>
+        <TextInput
+            style={[
+                styles.input,
+                error && styles.inputError,
+                style
+            ]}
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor="#A9A9A9AC"
+            secureTextEntry={secureTextEntry}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+            autoCorrect={false}
+        />
+        {showPasswordToggle && (
+            <TouchableOpacity
+                style={styles.showPasswordButton}
+                onPress={onTogglePassword}
+            >
+                <Text style={styles.showPasswordText}>
+                    {secureTextEntry ? 'Show' : 'Hide'}
+                </Text>
+            </TouchableOpacity>
+        )}
+        {error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+);
+
 export default function SignupPage() {
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [username, setUsername] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState('');
+    const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
+        username: '',
+        email: '',
+        password: '',
+        phoneNumber: ''
+    });
+    const [formErrors, setFormErrors] = useState({});
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const navigation = useNavigation();
 
-    const validateEmail = (email) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
+    // Debounced username availability check
+    const checkUsernameAvailability = useCallback(
+        debounce(async (username) => {
+            if (username && VALIDATION_RULES.USERNAME.pattern.test(username)) {
+                const db = getDatabase();
+                const usernameRef = ref(db, `usernames/${username.toLowerCase()}`);
+                const snapshot = await get(usernameRef);
+                if (snapshot.exists()) {
+                    setFormErrors(prev => ({
+                        ...prev,
+                        username: 'Username is already taken'
+                    }));
+                }
+            }
+        }, 500),
+        []
+    );
+
+    const validateField = (name, value) => {
+        let error = '';
+
+        if (!value.trim()) {
+            error = 'This field is required';
+        } else {
+            switch (name) {
+                case 'username':
+                    if (!VALIDATION_RULES.USERNAME.pattern.test(value)) {
+                        error = VALIDATION_RULES.USERNAME.message;
+                    }
+                    break;
+                case 'email':
+                    if (!VALIDATION_RULES.EMAIL.pattern.test(value)) {
+                        error = VALIDATION_RULES.EMAIL.message;
+                    }
+                    break;
+                case 'password':
+                    if (!VALIDATION_RULES.PASSWORD.pattern.test(value)) {
+                        error = VALIDATION_RULES.PASSWORD.message;
+                    }
+                    break;
+                case 'phoneNumber':
+                    if (!VALIDATION_RULES.PHONE.pattern.test(value)) {
+                        error = VALIDATION_RULES.PHONE.message;
+                    }
+                    break;
+            }
+        }
+
+        return error;
     };
 
-    const validatePassword = (password) => {
-        return password.length >= 6;
+    const handleInputChange = (name, value) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
+
+        // Clear previous error when user starts typing
+        setFormErrors(prev => ({ ...prev, [name]: '' }));
+
+        // Validate field on change
+        const error = validateField(name, value);
+        if (error) {
+            setFormErrors(prev => ({ ...prev, [name]: error }));
+        }
+
+        // Check username availability
+        if (name === 'username') {
+            checkUsernameAvailability(value);
+        }
     };
 
-    const validatePhoneNumber = (number) => {
-        const phoneRegex = /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/;
-        return phoneRegex.test(number);
-    };
-
-    const validateUsername = (username) => {
-        const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-        return usernameRegex.test(username);
+    const validateForm = () => {
+        const errors = {};
+        Object.keys(formData).forEach(key => {
+            const error = validateField(key, formData[key]);
+            if (error) {
+                errors[key] = error;
+            }
+        });
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
     };
 
     const handleSignup = async () => {
-        if (firstName.trim() === '' || lastName.trim() === '' || username.trim() === '' ||
-            email.trim() === '' || password === '' || phoneNumber.trim() === '') {
-            Alert.alert('Error', 'Please fill in all fields');
-            return;
-        }
-
-        if (!validateUsername(username)) {
-            Alert.alert('Error', 'Username must be 3-20 characters long and can only contain letters, numbers, and underscores');
-            return;
-        }
-
-        if (!validateEmail(email)) {
-            Alert.alert('Error', 'Please enter a valid email address');
-            return;
-        }
-
-        if (!validatePassword(password)) {
-            Alert.alert('Error', 'Password must be at least 6 characters long');
-            return;
-        }
-
-        if (!validatePhoneNumber(phoneNumber)) {
-            Alert.alert('Error', 'Please enter a valid phone number');
+        if (!validateForm()) {
+            Alert.alert('Error', 'Please fix the errors in the form');
             return;
         }
 
         setIsLoading(true);
         try {
-            // Check if username is already taken
-            const db = getDatabase();
-            const usernameRef = ref(db, `usernames/${username.toLowerCase()}`);
-            const usernameSnapshot = await get(usernameRef);
-
-            if (usernameSnapshot.exists()) {
-                Alert.alert('Error', 'This username is already taken');
-                setIsLoading(false);
-                return;
-            }
-
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const userCredential = await createUserWithEmailAndPassword(
+                auth,
+                formData.email,
+                formData.password
+            );
             const user = userCredential.user;
 
-            // Save user data
-            await set(ref(db, 'users/' + user.uid), {
-                firstName: firstName,
-                lastName: lastName,
-                username: username.toLowerCase(),
-                email: email,
-                phoneNumber: phoneNumber,
+            const db = getDatabase();
+            const userData = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                username: formData.username.toLowerCase(),
+                email: formData.email,
+                phoneNumber: formData.phoneNumber,
                 createdAt: new Date().toISOString()
+            };
+
+            // Use a transaction to ensure atomicity
+            await Promise.all([
+                set(ref(db, `users/${user.uid}`), userData),
+                set(ref(db, `usernames/${formData.username.toLowerCase()}`), user.uid)
+            ]);
+
+            // Reset form
+            setFormData({
+                firstName: '',
+                lastName: '',
+                username: '',
+                email: '',
+                password: '',
+                phoneNumber: ''
             });
-
-            // Reserve username
-            await set(ref(db, `usernames/${username.toLowerCase()}`), user.uid);
-
-            setFirstName('');
-            setLastName('');
-            setUsername('');
-            setEmail('');
-            setPassword('');
-            setPhoneNumber('');
+            setFormErrors({});
 
             navigation.navigate('Profile');
         } catch (error) {
-            let errorMessage = 'An error occurred during signup';
-            switch (error.code) {
-                case 'auth/email-already-in-use':
-                    errorMessage = 'This email is already registered';
-                    break;
-                case 'auth/invalid-email':
-                    errorMessage = 'Invalid email address';
-                    break;
-                case 'auth/weak-password':
-                    errorMessage = 'Password is too weak';
-                    break;
-                case 'auth/network-request-failed':
-                    errorMessage = 'Network error. Please check your connection';
-                    break;
-            }
-            Alert.alert('Signup Error', errorMessage);
+            const errorMessages = {
+                'auth/email-already-in-use': 'This email is already registered',
+                'auth/invalid-email': 'Invalid email address',
+                'auth/weak-password': 'Password is too weak',
+                'auth/network-request-failed': 'Network error. Please check your connection'
+            };
+
+            Alert.alert(
+                'Signup Error',
+                errorMessages[error.code] || 'An error occurred during signup'
+            );
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const handleLogin = () => {
-        navigation.navigate('Login');
     };
 
     return (
@@ -168,88 +267,63 @@ export default function SignupPage() {
                                 <Text style={styles.subtitle}>Sign up to get started</Text>
 
                                 <View style={styles.nameRow}>
-                                    <View style={styles.nameInput}>
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="First Name"
-                                            placeholderTextColor={'#A9A9A9AC'}
-                                            value={firstName}
-                                            onChangeText={setFirstName}
-                                            autoCorrect={false}
-                                            autoCapitalize="words"
-                                        />
-                                    </View>
-                                    <View style={[styles.nameInput, styles.lastNameInput]}>
-                                        <TextInput
-                                            style={styles.input}
-                                            placeholder="Last Name"
-                                            placeholderTextColor={'#A9A9A9AC'}
-                                            value={lastName}
-                                            onChangeText={setLastName}
-                                            autoCorrect={false}
-                                            autoCapitalize="words"
-                                        />
-                                    </View>
-                                </View>
-
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Username"
-                                        placeholderTextColor={'#A9A9A9AC'}
-                                        value={username}
-                                        onChangeText={(text) => setUsername(text.toLowerCase())}
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
+                                    <FormInput
+                                        value={formData.firstName}
+                                        onChangeText={(value) => handleInputChange('firstName', value)}
+                                        placeholder="First Name"
+                                        autoCapitalize="words"
+                                        error={formErrors.firstName}
+                                        style={styles.nameInput}
+                                    />
+                                    <FormInput
+                                        value={formData.lastName}
+                                        onChangeText={(value) => handleInputChange('lastName', value)}
+                                        placeholder="Last Name"
+                                        autoCapitalize="words"
+                                        error={formErrors.lastName}
+                                        style={[styles.nameInput, styles.lastNameInput]}
                                     />
                                 </View>
 
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Email"
-                                        placeholderTextColor={'#A9A9A9AC'}
-                                        value={email}
-                                        onChangeText={setEmail}
-                                        keyboardType="email-address"
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                    />
-                                </View>
+                                <FormInput
+                                    value={formData.username}
+                                    onChangeText={(value) => handleInputChange('username', value.toLowerCase())}
+                                    placeholder="Username"
+                                    error={formErrors.username}
+                                />
 
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Password"
-                                        placeholderTextColor={'#A9A9A9AC'}
-                                        value={password}
-                                        onChangeText={setPassword}
-                                        secureTextEntry={!showPassword}
-                                        autoCapitalize="none"
-                                    />
-                                    <TouchableOpacity
-                                        style={styles.showPasswordButton}
-                                        onPress={() => setShowPassword(!showPassword)}
-                                    >
-                                        <Text style={styles.showPasswordText}>
-                                            {showPassword ? 'Hide' : 'Show'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
+                                <FormInput
+                                    value={formData.email}
+                                    onChangeText={(value) => handleInputChange('email', value)}
+                                    placeholder="Email"
+                                    keyboardType="email-address"
+                                    error={formErrors.email}
+                                />
 
-                                <View style={styles.inputContainer}>
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Phone Number"
-                                        placeholderTextColor={'#A9A9A9AC'}
-                                        value={phoneNumber}
-                                        onChangeText={setPhoneNumber}
-                                        keyboardType="phone-pad"
-                                    />
-                                </View>
+                                <FormInput
+                                    value={formData.password}
+                                    onChangeText={(value) => handleInputChange('password', value)}
+                                    placeholder="Password"
+                                    secureTextEntry={!showPassword}
+                                    error={formErrors.password}
+                                    showPasswordToggle
+                                    onTogglePassword={() => setShowPassword(!showPassword)}
+                                />
+
+                                <FormInput
+                                    value={formData.phoneNumber}
+                                    onChangeText={(value) => handleInputChange('phoneNumber', value)}
+                                    placeholder="Phone Number"
+                                    keyboardType="phone-pad"
+                                    error={formErrors.phoneNumber}
+                                />
 
                                 <TouchableOpacity
-                                    style={[styles.button, styles.signupButton]}
+                                    style={[
+                                        styles.button,
+                                        styles.signupButton,
+                                        isLoading && styles.buttonDisabled
+                                    ]}
                                     onPress={handleSignup}
                                     disabled={isLoading}
                                 >
@@ -262,7 +336,7 @@ export default function SignupPage() {
 
                                 <View style={styles.loginContainer}>
                                     <Text style={styles.loginText}>Already have an account? </Text>
-                                    <TouchableOpacity onPress={handleLogin}>
+                                    <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                                         <Text style={styles.loginLink}>Log In</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -344,6 +418,15 @@ const styles = StyleSheet.create({
         backgroundColor: '#f8f8f8',
         width: '100%',
     },
+    inputError: {
+        borderColor: '#ff6b6b',
+    },
+    errorText: {
+        color: '#ff6b6b',
+        fontSize: 12,
+        marginTop: 4,
+        fontFamily: 'Trebuchet MS',
+    },
     showPasswordButton: {
         position: 'absolute',
         right: 15,
@@ -364,6 +447,9 @@ const styles = StyleSheet.create({
     signupButton: {
         backgroundColor: '#007AFF',
     },
+    buttonDisabled: {
+        opacity: 0.7,
+    },
     buttonText: {
         color: 'white',
         fontSize: 16,
@@ -378,6 +464,7 @@ const styles = StyleSheet.create({
     loginText: {
         color: '#666',
         fontSize: 14,
+        fontFamily: 'Trebuchet MS',
     },
     loginLink: {
         color: '#007AFF',
@@ -386,4 +473,3 @@ const styles = StyleSheet.create({
         fontFamily: 'Trebuchet MS',
     },
 });
-
