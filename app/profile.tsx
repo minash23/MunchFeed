@@ -19,160 +19,185 @@ import { ref, get, set } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useNavigation } from '@react-navigation/native';
 
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
 export default function ProfilePage() {
-    const [profileImage, setProfileImage] = useState(null);
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [username, setUsername] = useState('');
-    const [foodPreference, setFoodPreference] = useState('');
-    const [location, setLocation] = useState('');
-    const [email, setEmail] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [birthday, setBirthday] = useState('');
-    const [birthdayError, setBirthdayError] = useState('');
+    const [formData, setFormData] = useState({
+        profileImage: null,
+        firstName: '',
+        lastName: '',
+        username: '',
+        foodPreference: '',
+        location: '',
+        email: '',
+        phoneNumber: '',
+        birthday: ''
+    });
+
+    const [errors, setErrors] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const navigation = useNavigation();
 
     useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const user = auth.currentUser;
-                if (user) {
-                    const userRef = ref(database, 'users/' + user.uid);
-                    const snapshot = await get(userRef);
-                    if (snapshot.exists()) {
-                        const userData = snapshot.val();
-                        setUsername(userData.username || '');
-                        setFirstName(userData.firstName || '');
-                        setLastName(userData.lastName || '');
-                        setFoodPreference(userData.foodPreference || '');
-                        setLocation(userData.location || '');
-                        setEmail(userData.email || user.email || '');
-                        setPhoneNumber(userData.phoneNumber || '');
-                        setBirthday(userData.birthday || '');
-                        setProfileImage(userData.profileImage || null);
-                    }
-                }
-            } catch (error) {
-                Alert.alert('Error', 'Failed to load profile data. Please try again.');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
+        requestImagePermissions();
         fetchUserData();
     }, []);
 
+    const requestImagePermissions = async () => {
+        if (Platform.OS !== 'web') {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to upload images.');
+            }
+        }
+    };
+
+    const fetchUserData = async () => {
+        try {
+            const user = auth.currentUser;
+            if (!user) throw new Error('No authenticated user found');
+
+            const snapshot = await get(ref(database, `users/${user.uid}`));
+            if (snapshot.exists()) {
+                const userData = snapshot.val();
+                setFormData(prevData => ({
+                    ...prevData,
+                    ...userData,
+                    email: userData.email || user.email || ''
+                }));
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Failed to load profile data. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleInputChange = (field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        setErrors(prev => ({ ...prev, [field]: '' }));
+    };
+
+    const validateForm = () => {
+        const newErrors = {};
+
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            newErrors.email = 'Please enter a valid email address';
+        }
+
+        // Phone validation (optional but must be valid if provided)
+        const phoneRegex = /^\+?[\d\s-]{10,}$/;
+        if (formData.phoneNumber && !phoneRegex.test(formData.phoneNumber)) {
+            newErrors.phoneNumber = 'Please enter a valid phone number';
+        }
+
+        // Birthday validation
+        if (formData.birthday) {
+            const [month, day, year] = formData.birthday.split('/').map(Number);
+            const birthDate = new Date(year, month - 1, day);
+            const today = new Date();
+
+            if (
+                month < 1 || month > 12 ||
+                day < 1 || day > 31 ||
+                year < 1900 || year > today.getFullYear() ||
+                birthDate > today
+            ) {
+                newErrors.birthday = 'Please enter a valid birth date';
+            }
+        }
+
+        // Required fields
+        ['username', 'firstName', 'lastName'].forEach(field => {
+            if (!formData[field]?.trim()) {
+                newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+            }
+        });
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const formatBirthday = (text) => {
+        const cleaned = text.replace(/\D/g, '');
+        let formatted = cleaned;
+
+        if (cleaned.length >= 2) {
+            formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+        }
+        if (cleaned.length >= 4) {
+            formatted = formatted.slice(0, 5) + '/' + cleaned.slice(4);
+        }
+
+        return formatted.slice(0, 10);
+    };
+
+    const handleBirthdayChange = (text) => {
+        const formatted = formatBirthday(text);
+        handleInputChange('birthday', formatted);
+    };
+
+    const pickImage = async () => {
+        try {
+            setIsUploadingImage(true);
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                const { uri, fileSize } = result.assets[0];
+
+                if (fileSize && fileSize > MAX_IMAGE_SIZE) {
+                    throw new Error('Image size must be less than 5MB');
+                }
+
+                const uploadedURL = await uploadProfileImage(uri);
+                if (uploadedURL) {
+                    handleInputChange('profileImage', uploadedURL);
+                }
+            }
+        } catch (error) {
+            Alert.alert('Error', error.message || 'Failed to upload image. Please try again.');
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+
     const uploadProfileImage = async (uri) => {
         const user = auth.currentUser;
-        if(!user) return null;
+        if (!user) return null;
 
         try {
             const imageRef = storageRef(storage, `profileImages/${user.uid}`);
             const response = await fetch(uri);
             const blob = await response.blob();
             await uploadBytes(imageRef, blob);
-            const downloadURL = await getDownloadURL(imageRef);
-            return downloadURL;
+            return await getDownloadURL(imageRef);
         } catch (error) {
-            Alert.alert('Error', 'Failed to upload image. Please try again.');
-            return null;
+            throw new Error('Failed to upload image');
         }
-    };
-
-    const pickImage = async () => {
-        try {
-            setIsUploadingImage(true);
-            let result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [1, 1],
-                quality: 1,
-            });
-
-            if (!result.canceled) {
-                if (result.assets[0].fileSize <= 5000000) {
-                    const uploadedURL = await uploadProfileImage(result.assets[0].uri);
-                    if(uploadedURL) {
-                        setProfileImage(uploadedURL);
-                    }
-                } else {
-                    Alert.alert('Error', 'Please select an image smaller than 5 MB.');
-                }
-            }
-        } catch (error) {
-            Alert.alert('Error', 'Failed to select image. Please try again.');
-        } finally {
-            setIsUploadingImage(false);
-        }
-    };
-
-    const handleBirthdayChange = (text) => {
-        const cleanedText = text.replace(/\D/g, '');
-        let formattedDate = cleanedText;
-        if (cleanedText.length >= 2) {
-            formattedDate = cleanedText.slice(0, 2) + '/' + cleanedText.slice(2);
-        }
-        if (cleanedText.length >= 4) {
-            formattedDate = formattedDate.slice(0, 5) + '/' + cleanedText.slice(4);
-        }
-        if (formattedDate.length <= 10) {
-            setBirthday(formattedDate);
-            if (cleanedText.length === 8) {
-                const month = parseInt(cleanedText.slice(0, 2));
-                const day = parseInt(cleanedText.slice(2, 4));
-                const year = parseInt(cleanedText.slice(4, 8));
-                const isValidMonth = month >= 1 && month <= 12;
-                const isValidDay = day >= 1 && day <= 31;
-                const isValidYear = year >= 1900 && year <= new Date().getFullYear();
-                if (!isValidMonth) setBirthdayError('Invalid month');
-                else if (!isValidDay) setBirthdayError('Invalid day');
-                else if (!isValidYear) setBirthdayError('Invalid year');
-                else setBirthdayError('');
-            }
-        }
-    };
-
-    const validateEmail = (email) => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
     };
 
     const saveUserProfile = async () => {
-        if (!validateEmail(email)) {
-            Alert.alert('Error', 'Please enter a valid email address');
+        if (!validateForm()) {
+            Alert.alert('Validation Error', 'Please correct the errors in the form.');
             return;
         }
 
         setIsSaving(true);
         try {
             const user = auth.currentUser;
-            if (!user) {
-                throw new Error("User not authenticated");
-            }
+            if (!user) throw new Error('No authenticated user found');
 
-            let profileImageUrl = profileImage;
-            if (profileImage && profileImage.startsWith('file://')) {
-                const response = await fetch(profileImage);
-                const blob = await response.blob();
-                const imageRef = storageRef(storage, `profileImages/${user.uid}`);
-                await uploadBytes(imageRef, blob);
-                profileImageUrl = await getDownloadURL(imageRef);
-            }
-
-            const userRef = ref(database, 'users/' + user.uid);
-            await set(userRef, {
-                username,
-                firstName,
-                lastName,
-                foodPreference,
-                location,
-                email,
-                phoneNumber,
-                birthday,
-                profileImage: profileImageUrl,
+            await set(ref(database, `users/${user.uid}`), {
+                ...formData,
                 updatedAt: new Date().toISOString()
             });
 
@@ -185,6 +210,19 @@ export default function ProfilePage() {
             setIsSaving(false);
         }
     };
+
+    const renderField = (label, field, props = {}) => (
+        <View style={styles.fieldContainer}>
+            <Text style={styles.field}>{label}</Text>
+            <TextInput
+                style={[styles.input, errors[field] && styles.inputError]}
+                value={formData[field]}
+                onChangeText={(text) => handleInputChange(field, text)}
+                {...props}
+            />
+            {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
+        </View>
+    );
 
     if (isLoading) {
         return (
@@ -212,8 +250,11 @@ export default function ProfilePage() {
                         >
                             {isUploadingImage ? (
                                 <ActivityIndicator size="small" color="#007AFF" />
-                            ) : profileImage ? (
-                                <Image source={{ uri: profileImage }} style={styles.profileImage} />
+                            ) : formData.profileImage ? (
+                                <Image
+                                    source={{ uri: formData.profileImage }}
+                                    style={styles.profileImage}
+                                />
                             ) : (
                                 <View style={styles.placeholderContainer}>
                                     <Text style={styles.imagePlaceholder}>Upload Photo</Text>
@@ -224,81 +265,41 @@ export default function ProfilePage() {
                         <View style={styles.detailsContainer}>
                             <Text style={styles.label}>Account Details</Text>
 
-                            <Text style={styles.field}>Username</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={username}
-                                onChangeText={setUsername}
-                                placeholder="Enter username"
-                            />
-
-                            <Text style={styles.field}>First Name</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={firstName}
-                                onChangeText={setFirstName}
-                                placeholder="Enter first name"
-                            />
-
-                            <Text style={styles.field}>Last Name</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={lastName}
-                                onChangeText={setLastName}
-                                placeholder="Enter last name"
-                            />
-
-                            <Text style={styles.field}>Food Preference</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={foodPreference}
-                                onChangeText={setFoodPreference}
-                                placeholder="Enter food preference"
-                            />
-
-                            <Text style={styles.field}>Location</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={location}
-                                onChangeText={setLocation}
-                                placeholder="Enter location"
-                            />
-
-                            <Text style={styles.field}>Email</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                placeholder="Enter email"
-                            />
-
-                            <Text style={styles.field}>Phone Number</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={phoneNumber}
-                                onChangeText={setPhoneNumber}
-                                keyboardType="phone-pad"
-                                placeholder="Enter phone number"
-                            />
-
-                            <Text style={styles.field}>Birthday (MM/DD/YYYY)</Text>
-                            <TextInput
-                                style={[styles.input, birthdayError ? styles.inputError : null]}
-                                value={birthday}
-                                onChangeText={handleBirthdayChange}
-                                placeholder="MM/DD/YYYY"
-                                keyboardType="numeric"
-                                maxLength={10}
-                            />
-                            {birthdayError ? (
-                                <Text style={styles.errorText}>{birthdayError}</Text>
-                            ) : null}
+                            {renderField('Username *', 'username', {
+                                placeholder: 'Enter username',
+                                autoCapitalize: 'none'
+                            })}
+                            {renderField('First Name *', 'firstName', {
+                                placeholder: 'Enter first name'
+                            })}
+                            {renderField('Last Name *', 'lastName', {
+                                placeholder: 'Enter last name'
+                            })}
+                            {renderField('Food Preference', 'foodPreference', {
+                                placeholder: 'Enter food preference'
+                            })}
+                            {renderField('Location', 'location', {
+                                placeholder: 'Enter location'
+                            })}
+                            {renderField('Email *', 'email', {
+                                placeholder: 'Enter email',
+                                keyboardType: 'email-address',
+                                autoCapitalize: 'none'
+                            })}
+                            {renderField('Phone Number', 'phoneNumber', {
+                                placeholder: 'Enter phone number',
+                                keyboardType: 'phone-pad'
+                            })}
+                            {renderField('Birthday (MM/DD/YYYY)', 'birthday', {
+                                placeholder: 'MM/DD/YYYY',
+                                keyboardType: 'numeric',
+                                maxLength: 10,
+                                onChangeText: handleBirthdayChange
+                            })}
                         </View>
 
                         <TouchableOpacity
-                            style={styles.saveButton}
+                            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
                             onPress={saveUserProfile}
                             disabled={isSaving}
                         >
@@ -369,17 +370,20 @@ const styles = StyleSheet.create({
         width: '100%',
         marginBottom: 20,
     },
+    fieldContainer: {
+        marginBottom: 15,
+    },
     label: {
         fontSize: 22,
         fontWeight: 'bold',
-        fontFamily: 'Trebuchet MS',
+        fontFamily: Platform.select({ ios: 'Helvetica', android: 'Roboto' }),
         color: '#333',
         marginBottom: 20,
         textAlign: 'center',
     },
     field: {
         fontSize: 16,
-        fontFamily: 'Trebuchet MS',
+        fontFamily: Platform.select({ ios: 'Helvetica', android: 'Roboto' }),
         color: '#666',
         marginBottom: 8,
     },
@@ -390,9 +394,8 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingHorizontal: 15,
         fontSize: 16,
-        fontFamily: 'Trebuchet MS',
+        fontFamily: Platform.select({ ios: 'Helvetica', android: 'Roboto' }),
         backgroundColor: '#f8f8f8',
-        marginBottom: 15,
     },
     inputError: {
         borderColor: '#ff3b30',
@@ -400,8 +403,7 @@ const styles = StyleSheet.create({
     errorText: {
         color: '#ff3b30',
         fontSize: 12,
-        marginTop: -12,
-        marginBottom: 15,
+        marginTop: 4,
     },
     saveButton: {
         backgroundColor: '#007AFF',
@@ -411,6 +413,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 10,
+    },
+    saveButtonDisabled: {
+        backgroundColor: '#007AFF80',
     },
     saveButtonText: {
         color: 'white',
