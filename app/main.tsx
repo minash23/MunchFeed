@@ -61,6 +61,8 @@ export default function MainPage() {
 
             // Delete post data from Realtime Database
             await remove(ref(database, `posts/${userId}`));
+            // Delete comment data as well
+            await remove(ref(database, `comments/${userId}`));
 
             // Delete image from Storage
             if (post.storagePath) {
