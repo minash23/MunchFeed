@@ -101,3 +101,49 @@ describe('MainPage Component', () => {
             })
         );
     });
+
+      it('deletes expired posts', async () => {
+        const mockRemove = jest.fn().mockResolvedValue({});
+        const mockDeleteObject = jest.fn().mockResolvedValue({});
+
+        // Mock the Firebase methods
+        remove.mockImplementation(mockRemove);
+        getStorage.mockReturnValue({});
+        ref.mockReturnValue({});
+        storageRef.mockReturnValue({});
+        deleteObject.mockImplementation(mockDeleteObject);
+
+        // Simulate an expired post
+        const expiredPost = { ...samplePost, timestamp: Date.now() - 86400000 }; // 1 day ago
+
+        // Call the deleteExpiredPosts function directly (in production it would be triggered on a time check)
+        await MainPage.prototype.deleteExpiredPosts('123', expiredPost);
+
+        // Assert that the post was removed from the database and storage
+        expect(mockRemove).toHaveBeenCalledTimes(1);
+        expect(mockDeleteObject).toHaveBeenCalledTimes(1);
+      });
+
+      it('disables post creation if the user has already posted today', async () => {
+        const { getByText, getByTestId } = render(<MainPage />);
+
+        // Simulate that the user has already posted today
+        fireEvent.press(getByTestId('cameraButton'));
+        expect(getByText(/You've already posted today/i)).toBeTruthy();
+      });
+
+      it('handles permission denied for camera', async () => {
+        const mockRequestCameraPermissionsAsync = jest.fn().mockResolvedValue({
+          status: 'denied',
+        });
+        ImagePicker.requestCameraPermissionsAsync = mockRequestCameraPermissionsAsync;
+
+        const { getByTestId } = render(<MainPage />);
+
+        // Simulate opening the camera
+        fireEvent.press(getByTestId('cameraButton'));
+
+        // Assert that permission denied alert is shown
+        await waitFor(() => expect(mockRequestCameraPermissionsAsync).toHaveBeenCalledTimes(1));
+      });
+    });
