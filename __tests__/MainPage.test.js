@@ -44,6 +44,18 @@ const samplePost = {
     userName: 'Test User',
 };
 
+describe('MainPage Component', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('renders correctly', async () => {
+        const { getByText, getByTestId } = render(<MainPage />);
+
+        expect(getByText(/Welcome back/i)).toBeTruthy();
+        expect(getByTestId('cameraButton')).toBeTruthy();
+    });
+
 
     it('calls handlePost and uploads an image', async () => {
         const mockUploadBytes = jest.fn().mockResolvedValue({});
@@ -89,5 +101,3 @@ const samplePost = {
             })
         );
     });
-
-});
