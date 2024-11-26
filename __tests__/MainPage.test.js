@@ -90,8 +90,4 @@ const samplePost = {
         );
     });
 
-
-
-
-
 });
