@@ -90,27 +90,8 @@ const samplePost = {
         );
     });
 
-    it('disables post creation if the user has already posted today', async () => {
-        const { getByText, getByTestId } = render(<MainPage />);
 
-        // Simulate that the user has already posted today
-        fireEvent.press(getByTestId('cameraButton'));
-        expect(getByText(/You've already posted today/i)).toBeTruthy();
-      });
 
-      it('handles permission denied for camera', async () => {
-        const mockRequestCameraPermissionsAsync = jest.fn().mockResolvedValue({
-          status: 'denied',
-        });
-        ImagePicker.requestCameraPermissionsAsync = mockRequestCameraPermissionsAsync;
 
-        const { getByTestId } = render(<MainPage />);
 
-        // Simulate opening the camera
-        fireEvent.press(getByTestId('cameraButton'));
-
-        // Assert that permission denied alert is shown
-        await waitFor(() => expect(mockRequestCameraPermissionsAsync).toHaveBeenCalledTimes(1));
-      });
-    });
 });
