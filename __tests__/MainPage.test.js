@@ -44,6 +44,18 @@ const samplePost = {
     userName: 'Test User',
 };
 
+    describe('MainPage Component', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('renders correctly', async () => {
+        const { getByText, getByTestId } = render(<MainPage />);
+
+        expect(getByText(/Welcome back/i)).toBeTruthy();
+        expect(getByTestId('cameraButton')).toBeTruthy();
+    });
+
 
     it('calls handlePost and uploads an image', async () => {
         const mockUploadBytes = jest.fn().mockResolvedValue({});
@@ -90,8 +102,31 @@ const samplePost = {
         );
     });
 
+        it('deletes expired posts', async () => {
+            const mockRemove = jest.fn().mockResolvedValue({});
+            const mockDeleteObject = jest.fn().mockResolvedValue({});
+
+            // Mock the Firebase methods
+            remove.mockImplementation(mockRemove);
+            getStorage.mockReturnValue({});
+            ref.mockReturnValue({});
+            storageRef.mockReturnValue({});
+            deleteObject.mockImplementation(mockDeleteObject);
+
+            // Simulate an expired post
+            const expiredPost = { ...samplePost, timestamp: Date.now() - 86400000 }; // 1 day ago
+
+            // Call the deleteExpiredPosts function directly (in production it would be triggered on a time check)
+            await MainPage.prototype.deleteExpiredPosts('123', expiredPost);
+
+            // Assert that the post was removed from the database and storage
+            expect(mockRemove).toHaveBeenCalledTimes(1);
+            expect(mockDeleteObject).toHaveBeenCalledTimes(1);
+        });
 
 
 
 
-});
+
+
+    });
