@@ -376,14 +376,14 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 22,
         fontWeight: 'bold',
-        fontFamily: Platform.select({ ios: 'Helvetica', android: 'Roboto' }),
+        fontFamily: Platform.select({ ios: 'Trebuchet MS', android: 'Roboto' }),
         color: '#333',
         marginBottom: 20,
         textAlign: 'center',
     },
     field: {
         fontSize: 16,
-        fontFamily: Platform.select({ ios: 'Helvetica', android: 'Roboto' }),
+        fontFamily: Platform.select({ ios: 'Trebuchet MS', android: 'Roboto' }),
         color: '#666',
         marginBottom: 8,
     },
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingHorizontal: 15,
         fontSize: 16,
-        fontFamily: Platform.select({ ios: 'Helvetica', android: 'Roboto' }),
+        fontFamily: Platform.select({ ios: 'Trebuchet MS', android: 'Roboto' }),
         backgroundColor: '#f8f8f8',
     },
     inputError: {
@@ -403,6 +403,7 @@ const styles = StyleSheet.create({
     errorText: {
         color: '#ff3b30',
         fontSize: 12,
+        fontFamily: Platform.select({ ios: 'Trebuchet MS', android: 'Roboto' }),
         marginTop: 4,
     },
     saveButton: {
@@ -420,6 +421,7 @@ const styles = StyleSheet.create({
     saveButtonText: {
         color: 'white',
         fontSize: 16,
+        fontFamily: Platform.select({ ios: 'Trebuchet MS', android: 'Roboto' }),
         fontWeight: '600',
     },
 });

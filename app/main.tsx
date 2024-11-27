@@ -19,8 +19,10 @@ import { auth } from '../config/firebaseConfig';
 import { getDatabase, ref, set, get, remove, onValue } from "firebase/database";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/FontAwesome';
 // @ts-ignore
-import defaultPFP from '../assets/images/defaultPFP.png';  // Import the default profile picture
+import defaultPFP from '../assets/images/defaultPFP.png';
+import {timestamp} from "yaml/dist/schema/yaml-1.1/timestamp";  // Import the default profile picture
 
 // Define types for TypeScript
 type Post = {
@@ -30,6 +32,7 @@ type Post = {
     timestamp: number;
     userName: string;
     profileImage?: string;
+    friendId?: string;
 };
 
 type NavigationProps = {
@@ -83,6 +86,10 @@ export default function MainPage() {
         const postDate = new Date(timestamp).setHours(0, 0, 0, 0);
         const today = new Date().setHours(0, 0, 0, 0);
         return postDate < today;
+    };
+
+    const navigateToProfile = (userId: string) => {
+        navigation.navigate('ViewProfile', { userId });
     };
 
     useEffect(() => {
@@ -146,6 +153,7 @@ export default function MainPage() {
 
                         if (friendPostSnapshot.exists()) {
                             const friendPost = friendPostSnapshot.val();
+                            friendPost.friendId = friendId;
                             friendPosts.push(friendPost);
                         }
                     }
@@ -317,17 +325,14 @@ export default function MainPage() {
 
     // Main render
     return (
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
             {/* Header with logo */}
             <View style={styles.header}>
                 <Image source={require('../assets/images/blackLogo.png')} style={styles.logo} />
             </View>
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <ScrollView
-                    contentContainerStyle={styles.scrollContainer}
-                    showsVerticalScrollIndicator={false}
-                >
+                <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
                     {/* Welcome message */}
                     <Text style={styles.welcomeText}>Welcome back, {userName || 'Guest'}!</Text>
 
@@ -359,14 +364,8 @@ export default function MainPage() {
                                 blurOnSubmit={true}
                                 placeholderTextColor={'#A9A9A9AC'}
                             />
-                            <TouchableOpacity
-                                style={styles.postButton}
-                                onPress={handlePost}
-                                disabled={loading}
-                            >
-                                <Text style={styles.postButtonText}>
-                                    {loading ? 'Posting...' : 'Share Post'}
-                                </Text>
+                            <TouchableOpacity style={styles.postButton} onPress={handlePost} disabled={loading}>
+                                <Text style={styles.postButtonText}>{loading ? 'Posting...' : 'Share Post'}</Text>
                             </TouchableOpacity>
                         </View>
                     ) : null}
@@ -376,28 +375,25 @@ export default function MainPage() {
                         <View style={styles.postCard}>
                             <View style={styles.postHeader}>
                                 <View style={styles.userInfo}>
-                                    <Image
-                                        source={currentPost.profileImage ? { uri: currentPost.profileImage } : defaultPFP}
-                                        style={styles.profileImage}
-                                    />
-                                    <Text style={styles.userName}>{currentPost.userName}</Text>
+                                    <TouchableOpacity onPress={() => navigateToProfile(uid)} style={styles.postHeader}>
+                                        <Image
+                                            source={currentPost.profileImage ? { uri: currentPost.profileImage } : defaultPFP}
+                                            style={styles.profileImage}
+                                        />
+                                        <Text style={styles.userName}>{currentPost.userName}</Text>
+                                    </TouchableOpacity>
                                 </View>
                                 <Text style={styles.timestamp}>
                                     {new Date(currentPost.timestamp).toLocaleDateString()}
                                 </Text>
                             </View>
-                            <Image
-                                source={{ uri: currentPost.imageUrl }}
-                                style={styles.postImage}
-                                resizeMode="cover"
-                            />
-                            {currentPost.caption ? (
-                                <Text style={styles.caption}>{currentPost.caption}</Text>
-                            ) : null}
+                            <Image source={{ uri: currentPost.imageUrl }} style={styles.postImage} resizeMode="cover" />
+                            {currentPost.caption ? <Text style={styles.caption}>{currentPost.caption}</Text> : null}
                             <TouchableOpacity
                                 onPress={() => navigation.navigate('Comments', { postId: uid })}
                                 style={styles.commentButton}
                             >
+                                <Icon name="comment" size={16} color="#007BFF" />
                                 <Text style={styles.commentButtonText}>View comments</Text>
                             </TouchableOpacity>
                         </View>
@@ -418,14 +414,8 @@ export default function MainPage() {
                                     {new Date(post.timestamp).toLocaleDateString()}
                                 </Text>
                             </View>
-                            <Image
-                                source={{ uri: post.imageUrl }}
-                                style={styles.postImage}
-                                resizeMode="cover"
-                            />
-                            {post.caption ? (
-                                <Text style={styles.caption}>{post.caption}</Text>
-                            ) : null}
+                            <Image source={{ uri: post.imageUrl }} style={styles.postImage} resizeMode="cover" />
+                            {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
                             <TouchableOpacity
                                 onPress={() => navigation.navigate('Comments', { postId: post.userName })}
                                 style={styles.commentButton}
@@ -437,28 +427,28 @@ export default function MainPage() {
                 </ScrollView>
             </TouchableWithoutFeedback>
 
-            {/* Bottom navigation */}
-            <View style={styles.bottomNav}>
+            {/* Bottom navigation inside SafeAreaView */}
+            <SafeAreaView style={styles.bottomNav}>
                 <TouchableOpacity
                     style={styles.navItem}
                     onPress={() => navigation.navigate('Profile')}
                 >
-                    <Text style={styles.navText}>Profile</Text>
+                    <Icon name="user" size={24} color="#000" />
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.navItem}
                     onPress={() => navigation.navigate('Main')}
                 >
-                    <Text style={[styles.navText, styles.activeNavText]}>Home</Text>
+                    <Icon name="home" size={24} color="#000" />
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={styles.navItem}
                     onPress={() => navigation.navigate('AddFriends')}
                 >
-                    <Text style={styles.navText}>Add Friends</Text>
+                    <Icon name="user-plus" size={24} color="#000" />
                 </TouchableOpacity>
-            </View>
-        </SafeAreaView>
+            </SafeAreaView>
+        </View>
     );
 }
 
@@ -468,7 +458,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     header: {
-        padding: 16,
+        paddingTop: 0,
+        paddingBottom: 6,
+        //padding: 16,
         alignItems: 'center',
         backgroundColor: '#fff',
         borderBottomWidth: 1,
@@ -494,7 +486,7 @@ const styles = StyleSheet.create({
     cameraButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#6366F1',
+        backgroundColor: '#007AFF',
         padding: 16,
         borderRadius: 12,
         marginBottom: 24,
@@ -546,7 +538,7 @@ const styles = StyleSheet.create({
         minHeight: 100,
     },
     postButton: {
-        backgroundColor: '#6366F1',
+        backgroundColor: '#007AFF',
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -619,23 +611,23 @@ const styles = StyleSheet.create({
     commentButton: {
         marginTop: 8,
         alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
     },
     commentButtonText: {
+        marginLeft: 6,
         color: '#007BFF',
         fontFamily: 'Trebuchet MS',
     },
     bottomNav: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        paddingVertical: 10,
+        justifyContent: 'space-evenly',
+        paddingBottom: 5,
         borderTopWidth: 1,
         borderColor: '#ddd',
     },
     navItem: {
         flex: 1,
         alignItems: 'center',
-    },
-    navText: {
-        fontSize: 16,
     },
 });

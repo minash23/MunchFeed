@@ -1,149 +1,241 @@
-import MainPage from '../src/screens/MainPage';  // adjust based on actual location of MainPage
-import { auth } from '../src/config/firebaseConfig';  // adjust based on actual location of firebaseConfig
+import MainPage from '../app/main';
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import MainPage from '../MainPage';  // Adjust path as necessary
-import { getDatabase, ref, set, get, remove } from 'firebase/database';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import { getDatabase, ref, set, get, remove, onValue } from 'firebase/database';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
-import { auth } from '../config/firebaseConfig'; // Adjust import if necessary
+import { auth } from '../config/firebaseConfig';
+import { Alert } from 'react-native';
 
-// Mocking Firebase and Expo ImagePicker
+// Mock navigation
+jest.mock('@react-navigation/native', () => ({
+    useNavigation: () => ({
+        navigate: jest.fn(),
+    }),
+}));
+
+// Mock Firebase database
 jest.mock('firebase/database', () => ({
     getDatabase: jest.fn(),
     ref: jest.fn(),
     set: jest.fn(),
     get: jest.fn(),
     remove: jest.fn(),
+    onValue: jest.fn(),
 }));
 
+// Mock Firebase storage
 jest.mock('firebase/storage', () => ({
     getStorage: jest.fn(),
     ref: jest.fn(),
     uploadBytes: jest.fn(),
     getDownloadURL: jest.fn(),
+    deleteObject: jest.fn(),
 }));
 
+// Mock expo-image-picker
 jest.mock('expo-image-picker', () => ({
     requestCameraPermissionsAsync: jest.fn(),
     launchCameraAsync: jest.fn(),
 }));
 
+// Mock Alert
+jest.spyOn(Alert, 'alert');
+
+// Mock Firebase auth
 jest.mock('../config/firebaseConfig', () => ({
     auth: {
-        currentUser: { uid: '123', displayName: 'Test User' },
+        currentUser: {
+            uid: 'test-uid',
+            displayName: 'Test User',
+        },
     },
 }));
 
-// Sample post data
-const samplePost = {
-    imageUrl: 'https://sample.com/image.jpg',
-    storagePath: 'images/sampleImage.jpg',
-    caption: 'Sample Caption',
-    timestamp: Date.now(),
-    userName: 'Test User',
-};
-
 describe('MainPage Component', () => {
+    const mockUser = {
+        username: 'Test User',
+        profileImage: 'https://example.com/profile.jpg',
+    };
+
+    const mockPost = {
+        imageUrl: 'https://example.com/image.jpg',
+        storagePath: 'images/test.jpg',
+        caption: 'Test caption',
+        timestamp: Date.now(),
+        userName: 'Test User',
+        profileImage: 'https://example.com/profile.jpg',
+    };
+
     beforeEach(() => {
         jest.clearAllMocks();
-    });
 
-    it('renders correctly', async () => {
-        const { getByText, getByTestId } = render(<MainPage />);
-
-        expect(getByText(/Welcome back/i)).toBeTruthy();
-        expect(getByTestId('cameraButton')).toBeTruthy();
-    });
-
-
-    it('calls handlePost and uploads an image', async () => {
-        const mockUploadBytes = jest.fn().mockResolvedValue({});
-        const mockGetDownloadURL = jest.fn().mockResolvedValue('https://sample.com/image.jpg');
-        const mockSet = jest.fn().mockResolvedValue({});
-
-        // Mock the Firebase methods
-        getStorage.mockReturnValue({});
-        ref.mockReturnValue({});
-        uploadBytes.mockImplementation(mockUploadBytes);
-        getDownloadURL.mockImplementation(mockGetDownloadURL);
-        set.mockImplementation(mockSet);
-
-        // Mock image picker result
-        const mockLaunchCameraAsync = jest.fn().mockResolvedValue({
-            canceled: false,
-            assets: [{ uri: 'file://path/to/image.jpg' }],
+        // Mock database responses
+        (get as jest.Mock).mockImplementation((ref) => {
+            if (ref.toString().includes('users')) {
+                return Promise.resolve({
+                    exists: () => true,
+                    val: () => mockUser,
+                });
+            } else if (ref.toString().includes('posts')) {
+                return Promise.resolve({
+                    exists: () => false,
+                });
+            } else if (ref.toString().includes('friends')) {
+                return Promise.resolve({
+                    exists: () => false,
+                });
+            }
+            return Promise.resolve({ exists: () => false });
         });
-        ImagePicker.launchCameraAsync = mockLaunchCameraAsync;
 
-        const { getByText, getByTestId } = render(<MainPage />);
+        // Mock onValue
+        (onValue as jest.Mock).mockImplementation((ref, callback) => {
+            callback({
+                exists: () => false,
+                val: () => null,
+            });
+            return () => {};
+        });
+    });
 
-        // Simulate opening the camera
-        fireEvent.press(getByTestId('cameraButton'));
+    it('renders correctly with user data', async () => {
+        const { getByText } = render(<MainPage />);
 
-        // Wait for the image to be uploaded
-        await waitFor(() => expect(mockUploadBytes).toHaveBeenCalledTimes(1));
+        await waitFor(() => {
+            expect(getByText('Welcome back, Test User!')).toBeTruthy();
+        });
+    });
 
-        // Simulate submitting the post
-        fireEvent.changeText(getByTestId('captionInput'), 'New Caption');
-        fireEvent.press(getByTestId('postButton'));
+    it('handles camera permissions and photo capture', async () => {
+        // Mock successful camera permissions
+        (ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+            status: 'granted',
+        });
 
-        // Wait for post submission to complete
-        await waitFor(() => expect(mockSet).toHaveBeenCalledTimes(1));
+        // Mock successful photo capture
+        (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({
+            canceled: false,
+            assets: [{ uri: 'file://test/photo.jpg' }],
+        });
 
-        expect(mockSet).toHaveBeenCalledWith(
-            expect.objectContaining({
-                imageUrl: 'https://sample.com/image.jpg',
-                storagePath: 'images/sampleImage.jpg',
-                caption: 'New Caption',
-                timestamp: expect.any(Number),
-                userName: 'Test User',
-            })
+        const { getByText } = render(<MainPage />);
+
+        await waitFor(() => {
+            expect(getByText("Create Today's Post")).toBeTruthy();
+        });
+
+        await act(async () => {
+            fireEvent.press(getByText("Create Today's Post"));
+        });
+
+        expect(ImagePicker.requestCameraPermissionsAsync).toHaveBeenCalled();
+        expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
+    });
+
+    it('handles post creation successfully', async () => {
+        // Mock successful upload
+        (uploadBytes as jest.Mock).mockResolvedValueOnce({});
+        (getDownloadURL as jest.Mock).mockResolvedValueOnce('https://example.com/uploaded.jpg');
+        (set as jest.Mock).mockResolvedValueOnce({});
+
+        const { getByText, getByPlaceholderText } = render(<MainPage />);
+
+        // Simulate image capture
+        (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({
+            canceled: false,
+            assets: [{ uri: 'file://test/photo.jpg' }],
+        });
+
+        await act(async () => {
+            fireEvent.press(getByText("Create Today's Post"));
+        });
+
+        await waitFor(() => {
+            expect(getByPlaceholderText('Write a caption...')).toBeTruthy();
+        });
+
+        fireEvent.changeText(getByPlaceholderText('Write a caption...'), 'Test caption');
+
+        await act(async () => {
+            fireEvent.press(getByText('Share Post'));
+        });
+
+        expect(uploadBytes).toHaveBeenCalled();
+        expect(set).toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Post created successfully!');
+    });
+
+    it('handles expired posts deletion', async () => {
+        const expiredPost = {
+            ...mockPost,
+            timestamp: Date.now() - (25 * 60 * 60 * 1000), // 25 hours ago
+        };
+
+        // Mock database get for expired post
+        (get as jest.Mock).mockImplementationOnce(() => ({
+            exists: () => true,
+            val: () => expiredPost,
+        }));
+
+        const { getByText } = render(<MainPage />);
+
+        await waitFor(() => {
+            expect(remove).toHaveBeenCalled();
+            expect(deleteObject).toHaveBeenCalled();
+        });
+    });
+
+    it('prevents multiple posts in one day', async () => {
+        const recentPost = {
+            ...mockPost,
+            timestamp: Date.now() - (1 * 60 * 60 * 1000), // 1 hour ago
+        };
+
+        // Mock database get for recent post
+        (get as jest.Mock).mockImplementationOnce(() => ({
+            exists: () => true,
+            val: () => recentPost,
+        }));
+
+        const { getByText } = render(<MainPage />);
+
+        await waitFor(() => {
+            expect(getByText("You've already posted today")).toBeTruthy();
+        });
+
+        fireEvent.press(getByText("You've already posted today"));
+
+        expect(Alert.alert).toHaveBeenCalledWith(
+            'Limit Reached',
+            'You can only post once per day. Try again tomorrow!'
         );
     });
 
-      it('deletes expired posts', async () => {
-        const mockRemove = jest.fn().mockResolvedValue({});
-        const mockDeleteObject = jest.fn().mockResolvedValue({});
+    it('handles error during post creation', async () => {
+        // Mock upload failure
+        (uploadBytes as jest.Mock).mockRejectedValueOnce(new Error('Upload failed'));
 
-        // Mock the Firebase methods
-        remove.mockImplementation(mockRemove);
-        getStorage.mockReturnValue({});
-        ref.mockReturnValue({});
-        storageRef.mockReturnValue({});
-        deleteObject.mockImplementation(mockDeleteObject);
+        const { getByText, getByPlaceholderText } = render(<MainPage />);
 
-        // Simulate an expired post
-        const expiredPost = { ...samplePost, timestamp: Date.now() - 86400000 }; // 1 day ago
-
-        // Call the deleteExpiredPosts function directly (in production it would be triggered on a time check)
-        await MainPage.prototype.deleteExpiredPosts('123', expiredPost);
-
-        // Assert that the post was removed from the database and storage
-        expect(mockRemove).toHaveBeenCalledTimes(1);
-        expect(mockDeleteObject).toHaveBeenCalledTimes(1);
-      });
-
-      it('disables post creation if the user has already posted today', async () => {
-        const { getByText, getByTestId } = render(<MainPage />);
-
-        // Simulate that the user has already posted today
-        fireEvent.press(getByTestId('cameraButton'));
-        expect(getByText(/You've already posted today/i)).toBeTruthy();
-      });
-
-      it('handles permission denied for camera', async () => {
-        const mockRequestCameraPermissionsAsync = jest.fn().mockResolvedValue({
-          status: 'denied',
+        // Simulate image capture
+        (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({
+            canceled: false,
+            assets: [{ uri: 'file://test/photo.jpg' }],
         });
-        ImagePicker.requestCameraPermissionsAsync = mockRequestCameraPermissionsAsync;
 
-        const { getByTestId } = render(<MainPage />);
+        await act(async () => {
+            fireEvent.press(getByText("Create Today's Post"));
+        });
 
-        // Simulate opening the camera
-        fireEvent.press(getByTestId('cameraButton'));
+        await waitFor(() => {
+            expect(getByPlaceholderText('Write a caption...')).toBeTruthy();
+        });
 
-        // Assert that permission denied alert is shown
-        await waitFor(() => expect(mockRequestCameraPermissionsAsync).toHaveBeenCalledTimes(1));
-      });
+        await act(async () => {
+            fireEvent.press(getByText('Share Post'));
+        });
+
+        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to create post');
     });
+});
