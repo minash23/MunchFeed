@@ -404,11 +404,14 @@ export default function MainPage() {
                         <View key={index} style={styles.postCard}>
                             <View style={styles.postHeader}>
                                 <View style={styles.userInfo}>
-                                    <Image
-                                        source={post.profileImage ? { uri: post.profileImage } : defaultPFP}
-                                        style={styles.profileImage}
-                                    />
-                                    <Text style={styles.userName}>{post.userName}</Text>
+                                    <TouchableOpacity onPress={() => navigateToProfile(post.friendId)} style={styles.postHeader}>
+                                        <Image
+                                            source={post.profileImage ? { uri: post.profileImage } : defaultPFP}
+                                            style={styles.profileImage}
+                                        />
+                                        <Text style={styles.userName}>{post.userName}</Text>
+                                    </TouchableOpacity>
+
                                 </View>
                                 <Text style={styles.timestamp}>
                                     {new Date(post.timestamp).toLocaleDateString()}
