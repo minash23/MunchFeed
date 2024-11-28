@@ -611,12 +611,14 @@ const styles = StyleSheet.create({
         color: '#374151',
         lineHeight: 24,
         marginBottom: 12,
+        paddingLeft: 4,
     },
     commentButton: {
         marginTop: 8,
         alignItems: 'center',
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
+        paddingLeft: 4,
     },
     commentButtonText: {
         marginLeft: 6,
