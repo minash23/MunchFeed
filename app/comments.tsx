@@ -22,6 +22,8 @@ import { ref, set, push, onValue, get, remove, update } from 'firebase/database'
 import { useRoute } from '@react-navigation/core';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
+import {StackNavigationProp} from "@react-navigation/stack";
+import {useNavigation} from "@react-navigation/native";
 
 interface User {
     userId: string;
@@ -40,6 +42,9 @@ interface Comment {
     likedBy?: { [key: string]: boolean };
 }
 
+type NavigationProps = {
+    navigate: (screen: string, params?: any) => void;
+};
 interface PostDetails {
     caption: string;
     imageUrl?: string;
@@ -64,6 +69,7 @@ function CommentsPage() {
     const [page, setPage] = useState(1);
     const [hasMoreComments, setHasMoreComments] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+    const navigation = useNavigation<NavigationProps>();
 
     const route = useRoute();
     const { postId } = route.params as { postId: string };
@@ -97,6 +103,10 @@ function CommentsPage() {
             console.error('Error fetching post details:', error);
             Alert.alert('Error', 'Failed to load post details');
         }
+    };
+
+    const navigateToProfile = (userId: string) => {
+        navigation.navigate('ViewProfile', { userId });
     };
 
     const fetchComments = async (shouldRefresh = false) => {
@@ -296,44 +306,46 @@ const renderRightActions = (commentId: string, userId: string) => {
     );
 };
 
-const renderCommentItem = (comment: Comment) => (
-    <Swipeable
-        key={comment.id}
-        renderRightActions={() => renderRightActions(comment.id!, comment.userId)}
-        overshootRight={false}
-    >
-        <View style={styles.commentContainer}>
-            <View style={styles.commentHeader}>
-                <Image
-                    source={comment.userProfileImage ?
-                        { uri: comment.userProfileImage } :
-                        require('../assets/images/defaultPFP.png')}
-                    style={styles.commentUserImage}
-                />
-                <Text style={styles.commentUserName}>{comment.userName}</Text>
-                <Text style={styles.commentTimestamp}>
-                    {formatTimestamp(comment.timestamp!)}
-                </Text>
-            </View>
-            <Text style={styles.commentText}>{comment.text}</Text>
-            <View style={styles.commentActions}>
-                <TouchableOpacity
-                    onPress={() => comment.id && likeComment(comment.id)}
-                    style={styles.likeButton}
-                >
-                    <Ionicons
-                        name={comment.likedBy?.[currentUserId || ''] ? 'heart' : 'heart-outline'}
-                        size={20}
-                        color="red"
-                    />
-                    <Text style={styles.likeCount}>{comment.likes}</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    </Swipeable>
-);
+    const renderCommentItem = (comment: Comment) => (
+        <Swipeable
+            key={comment.id}
+            renderRightActions={() => renderRightActions(comment.id!, comment.userId)}
+            overshootRight={false}
+        >
+            <View style={styles.commentContainer}>
+                <View style={styles.commentLeft}>
+                    <View style={styles.commentHeader}>
+                        <TouchableOpacity
+                            onPress={() => navigateToProfile(comment.userId)}
+                            style={styles.userInfoContainer}
+                        >
+                            <Image
+                                source={comment.userProfileImage ? { uri: comment.userProfileImage } : require('../assets/images/defaultPFP.png')}
+                                style={styles.commentUserImage}
+                            />
+                            <Text style={styles.commentUserName}>{comment.userName}</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={styles.commentText}>{comment.text}</Text>
+                </View>
 
-return (
+                <View style={styles.commentRight}>
+                    <Text style={styles.commentTimestamp}>{formatTimestamp(comment.timestamp!)}</Text>
+                    <TouchableOpacity onPress={() => comment.id && likeComment(comment.id)} style={styles.likeButton}>
+                        <Ionicons
+                            name={comment.likedBy?.[currentUserId || ''] ? 'heart' : 'heart-outline'}
+                            size={20}
+                            color="red"
+                        />
+                        <Text style={styles.likeCount}>{comment.likes}</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Swipeable>
+    );
+
+
+    return (
     <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -450,13 +462,25 @@ const styles = StyleSheet.create({
         fontFamily: 'Trebuchet MS',
     },
     commentContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         padding: 10,
         borderBottomWidth: 1,
         borderBottomColor: '#ddd',
     },
+    commentLeft: {
+        flex: 1,
+        flexDirection: 'column',
+    },
+    commentRight: {
+        alignItems: 'flex-end',
+        justifyContent: 'flex-start',
+        paddingTop: 5,
+    },
     commentHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        marginBottom: 5,
     },
     commentUserImage: {
         width: 30,
@@ -464,23 +488,30 @@ const styles = StyleSheet.create({
         borderRadius: 15,
         marginRight: 10,
     },
+    userInfoContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     commentUserName: {
         fontWeight: 'bold',
+        fontFamily: 'Trebuchet MS',
     },
     commentTimestamp: {
         fontSize: 12,
         color: '#888',
         marginLeft: 10,
+        marginBottom: 5,
     },
     commentText: {
-        marginVertical: 10,
         fontSize: 14,
+        fontFamily: 'Trebuchet MS',
     },
     commentActions: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     likeButton: {
+        marginTop: 8,
         flexDirection: 'row',
         alignItems: 'center',
         marginRight: 10,

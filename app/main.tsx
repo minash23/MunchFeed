@@ -423,6 +423,7 @@ export default function MainPage() {
                                 onPress={() => navigation.navigate('Comments', { postId: post.userName })}
                                 style={styles.commentButton}
                             >
+                                <Icon name="comment" size={16} color="#007BFF" />
                                 <Text style={styles.commentButtonText}>View comments</Text>
                             </TouchableOpacity>
                         </View>
