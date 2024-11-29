@@ -21,24 +21,28 @@ import { auth } from '../config/firebaseConfig';
 import { useNavigation } from '@react-navigation/native';
 import splash from '../assets/images/splash.png';
 
+// Get screen dimensions for responsive layout
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
-  const navigation = useNavigation();
+  // State hooks to manage the input fields, loading states, and modal visibility
+  const [username, setUsername] = useState(''); // Stores username (email)
+  const [password, setPassword] = useState(''); // Stores password
+  const [isLoading, setIsLoading] = useState(false); // Shows loading spinner while waiting for Firebase response
+  const [showPassword, setShowPassword] = useState(false); // Toggles password visibility
+  const [showForgotPassword, setShowForgotPassword] = useState(false); // Controls visibility of the password reset modal
+  const [resetEmail, setResetEmail] = useState(''); // Stores the email for password reset
+  const [isResetting, setIsResetting] = useState(false); // Shows loading spinner for password reset
+  const navigation = useNavigation(); // For navigating between screens
 
+  // Function to validate the email format
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(email); // Returns true if email is valid
   };
 
+  // Function to handle login
   const handleLogin = async () => {
     if (username.trim() === '' || password.trim() === '') {
       Alert.alert('Error', 'Please fill in both fields');
@@ -50,13 +54,14 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true);
+    setIsLoading(true); // Start loading spinner
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, username, password);
-      console.log(userCredential.user);
-      navigation.navigate('Main');
+      const userCredential = await signInWithEmailAndPassword(auth, username, password); // Firebase login
+      console.log(userCredential.user); // Logs user info on successful login
+      navigation.navigate('Main'); // Navigate to 'Main' screen upon successful login
     } catch (error) {
       let errorMessage = 'An error occurred during login';
+      // Handle specific Firebase errors
       switch (error.code) {
         case 'auth/user-not-found':
           errorMessage = 'No account found with this email';
@@ -71,13 +76,14 @@ export default function LoginPage() {
           errorMessage = 'Too many failed attempts. Please try again later';
           break;
       }
-      Alert.alert('Login Error', errorMessage);
-      console.log(error.code, error.message);
+      Alert.alert('Login Error', errorMessage); // Show error message
+      console.log(error.code, error.message); // Log error for debugging
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Stop loading spinner
     }
   };
 
+  // Function to handle password reset
   const handleResetPassword = async () => {
     if (!resetEmail.trim()) {
       Alert.alert('Error', 'Please enter your email address');
@@ -89,17 +95,18 @@ export default function LoginPage() {
       return;
     }
 
-    setIsResetting(true);
+    setIsResetting(true); // Start loading spinner for password reset
     try {
-      await sendPasswordResetEmail(auth, resetEmail);
+      await sendPasswordResetEmail(auth, resetEmail); // Firebase password reset
       Alert.alert(
           'Success',
           'Password reset email sent! Please check your inbox.',
           [{ text: 'OK', onPress: () => setShowForgotPassword(false) }]
       );
-      setResetEmail('');
+      setResetEmail(''); // Clear reset email field
     } catch (error) {
       let errorMessage = 'An error occurred while sending reset email';
+      // Handle specific Firebase errors
       switch (error.code) {
         case 'auth/user-not-found':
           errorMessage = 'No account found with this email address';
@@ -111,12 +118,13 @@ export default function LoginPage() {
           errorMessage = 'Too many attempts. Please try again later';
           break;
       }
-      Alert.alert('Error', errorMessage);
+      Alert.alert('Error', errorMessage); // Show error message
     } finally {
-      setIsResetting(false);
+      setIsResetting(false); // Stop loading spinner
     }
   };
 
+  // Navigate to the SignUp page
   const handleSignUp = () => {
     navigation.navigate('SignUp');
   };
@@ -142,6 +150,7 @@ export default function LoginPage() {
                 <Text style={styles.title}>Welcome Back</Text>
                 <Text style={styles.subtitle}>Sign in to continue</Text>
 
+                {/* Username Input */}
                 <View style={styles.inputContainer}>
                   <TextInput
                       style={styles.input}
@@ -155,6 +164,7 @@ export default function LoginPage() {
                   />
                 </View>
 
+                {/* Password Input */}
                 <View style={styles.inputContainer}>
                   <TextInput
                       style={styles.input}
@@ -162,7 +172,7 @@ export default function LoginPage() {
                       placeholderTextColor={'#A9A9A9AC'}
                       value={password}
                       onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
+                      secureTextEntry={!showPassword} // Toggles password visibility
                       autoCapitalize="none"
                   />
                   <TouchableOpacity
@@ -175,6 +185,7 @@ export default function LoginPage() {
                   </TouchableOpacity>
                 </View>
 
+                {/* Forgot Password Button */}
                 <TouchableOpacity
                     style={styles.forgotPasswordButton}
                     onPress={() => setShowForgotPassword(true)}
@@ -182,18 +193,20 @@ export default function LoginPage() {
                   <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                 </TouchableOpacity>
 
+                {/* Login Button */}
                 <TouchableOpacity
                     style={[styles.button, styles.loginButton]}
                     onPress={handleLogin}
-                    disabled={isLoading}
+                    disabled={isLoading} // Disable button while loading
                 >
                   {isLoading ? (
-                      <ActivityIndicator color="white" />
+                      <ActivityIndicator color="white" /> // Show loading spinner
                   ) : (
                       <Text style={styles.buttonText}>Login</Text>
                   )}
                 </TouchableOpacity>
 
+                {/* SignUp Link */}
                 <View style={styles.signupContainer}>
                   <Text style={styles.signupText}>Don't have an account? </Text>
                   <TouchableOpacity onPress={handleSignUp}>
@@ -203,6 +216,7 @@ export default function LoginPage() {
               </View>
             </View>
 
+            {/* Modal for Forgot Password */}
             <Modal
                 visible={showForgotPassword}
                 animationType="slide"
@@ -223,16 +237,16 @@ export default function LoginPage() {
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoCorrect={false}
-                      editable={!isResetting}
+                      editable={!isResetting} // Disable input while resetting
                   />
 
                   <TouchableOpacity
                       style={[styles.button, styles.resetButton]}
                       onPress={handleResetPassword}
-                      disabled={isResetting}
+                      disabled={isResetting} // Disable button while resetting
                   >
                     {isResetting ? (
-                        <ActivityIndicator color="white" />
+                        <ActivityIndicator color="white" /> // Show loading spinner
                     ) : (
                         <Text style={styles.buttonText}>Send Reset Link</Text>
                     )}
@@ -241,10 +255,10 @@ export default function LoginPage() {
                   <TouchableOpacity
                       style={styles.cancelButton}
                       onPress={() => {
-                        setShowForgotPassword(false);
-                        setResetEmail('');
+                        setShowForgotPassword(false); // Close modal
+                        setResetEmail(''); // Clear email field
                       }}
-                      disabled={isResetting}
+                      disabled={isResetting} // Disable cancel button while resetting
                   >
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
@@ -267,98 +281,82 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   imageContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    bottom: 100,
-    marginBottom: -100,
+    marginBottom: 40,
   },
   logo: {
-    width: 400,
-    height: 400,
-  },
-  munchfeed: {
-    width: 200,
-    height: 35,
-    marginTop: -85,
+    width: windowWidth * 0.8,
+    height: windowHeight * 0.2,
   },
   formContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    width: '80%',
   },
   title: {
-    fontFamily: 'Trebuchet MS',
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
+    textAlign: 'center',
   },
   subtitle: {
-    fontFamily: 'Trebuchet MS',
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#777',
+    marginVertical: 10,
   },
   inputContainer: {
     marginBottom: 15,
-    position: 'relative',
   },
   input: {
-    height: 45,
-    borderColor: '#e1e1e1',
+    height: 50,
+    borderColor: '#ccc',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 15,
+    borderRadius: 5,
+    paddingLeft: 15,
     fontSize: 16,
-    backgroundColor: '#f8f8f8',
   },
   showPasswordButton: {
     position: 'absolute',
-    right: 15,
-    top: 12,
+    right: 10,
+    top: 15,
   },
   showPasswordText: {
-    color: '#007AFF',
-    fontSize: 14,
+    color: '#007bff',
   },
   forgotPasswordButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 15,
+    marginTop: 10,
+    marginBottom: 20,
   },
   forgotPasswordText: {
-    color: '#007AFF',
-    fontSize: 14,
+    textAlign: 'right',
+    color: '#007bff',
   },
   button: {
-    height: 45,
-    borderRadius: 8,
+    height: 50,
+    borderRadius: 5,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
   },
   loginButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#4CAF50',
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: '600',
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 15,
   },
   signupText: {
-    color: '#666',
     fontSize: 14,
+    color: '#777',
   },
   signupLink: {
-    color: '#007AFF',
     fontSize: 14,
-    fontWeight: '600',
+    color: '#007bff',
   },
   modalContainer: {
     flex: 1,
@@ -367,37 +365,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
+    width: '80%',
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxWidth: 400,
+    padding: 30,
+    borderRadius: 10,
+    alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-    textAlign: 'center',
   },
   modalSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
+    fontSize: 16,
     textAlign: 'center',
+    marginVertical: 10,
   },
   modalInput: {
     marginBottom: 20,
   },
   resetButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#4CAF50',
   },
   cancelButton: {
-    padding: 10,
+    marginTop: 10,
   },
   cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    textAlign: 'center',
+    color: '#FF0000',
   },
 });
