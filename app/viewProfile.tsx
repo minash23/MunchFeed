@@ -19,12 +19,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { ref, get, push, onValue, remove } from 'firebase/database';
 import { database } from '../config/firebaseConfig';
-import Icon from 'react-native-vector-icons/FontAwesome'; // @ts-ignore handled
-import defaultPFP from '../assets/images/defaultPFP.png';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Icon from 'react-native-vector-icons/FontAwesome'; // FontAwesome icon for location
+import defaultPFP from '../assets/images/defaultPFP.png'; // Default profile image if none is provided
+import { MaterialCommunityIcons } from '@expo/vector-icons'; // MaterialCommunityIcons for food preference
 
 type RouteParams = {
-    userId: string;
+    userId: string; // User's ID passed via route parameters
 };
 
 type ProfileData = {
@@ -39,26 +39,29 @@ type ProfileData = {
 type Comment = {
     id: string;
     text: string;
-    username: string; // Add username here
+    username: string; // Comment's author's username
 };
 
+// InfoRow component for displaying individual profile details with icons
 const InfoRow = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
     <View style={styles.infoContainer}>
-        {icon}
-        <Text style={styles.infoText}>{text}</Text>
+        {icon}  {/* Display icon */}
+        <Text style={styles.infoText}>{text}</Text>  {/* Display corresponding text */}
     </View>
 );
 
 const ViewProfile = () => {
     const route = useRoute();
-    const { userId } = route.params as RouteParams;
+    const { userId } = route.params as RouteParams;  // Extract userId from route parameters
 
+    // State variables for profile data, comments, new comment input, loading state, and modal visibility
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isModalVisible, setIsModalVisible] = useState(false);
 
+    // useEffect hook for fetching user profile data and comments on component mount
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
@@ -66,15 +69,15 @@ const ViewProfile = () => {
                 const snapshot = await get(userRef);
 
                 if (snapshot.exists()) {
-                    setProfileData(snapshot.val());
+                    setProfileData(snapshot.val());  // Store profile data in state
                 } else {
-                    Alert.alert('Error', 'User not found');
+                    Alert.alert('Error', 'User not found');  // Display error if user not found
                 }
             } catch (error) {
                 console.error('Error fetching profile data:', error);
                 Alert.alert('Error', 'Failed to load profile');
             } finally {
-                setIsLoading(false);
+                setIsLoading(false);  // Set loading to false after data fetch
             }
         };
 
@@ -84,28 +87,29 @@ const ViewProfile = () => {
                 const fetchedComments: Comment[] = [];
                 snapshot.forEach((childSnapshot) => {
                     fetchedComments.push({
-                        id: childSnapshot.key!,
-                        text: childSnapshot.val().text, // assuming comments have 'text' field
-                        username: childSnapshot.val().username, // assuming comments have 'username' field
+                        id: childSnapshot.key!, // Comment ID
+                        text: childSnapshot.val().text, // Comment text
+                        username: childSnapshot.val().username, // Comment author's username
                     });
                 });
-                setComments(fetchedComments);
+                setComments(fetchedComments); // Set comments in state
             });
         };
 
-        fetchProfileData();
-        fetchComments();
-    }, [userId]);
+        fetchProfileData(); // Fetch profile data
+        fetchComments(); // Fetch comments
+    }, [userId]); // Re-run effect when userId changes
 
+    // Function to handle adding a new comment
     const handleAddComment = async () => {
         if (!newComment.trim()) {
-            Alert.alert('Error', 'Comment cannot be empty');
+            Alert.alert('Error', 'Comment cannot be empty');  // Alert if comment is empty
             return;
         }
 
         try {
             const commentsRef = ref(database, `users/${userId}/comments`);
-            await push(commentsRef, { text: newComment.trim(), username: 'Anonymous' }); // Update with actual username
+            await push(commentsRef, { text: newComment.trim(), username: 'Anonymous' }); // Add new comment to Firebase
             setNewComment(''); // Clear the input field
         } catch (error) {
             console.error('Error adding comment:', error);
@@ -113,16 +117,18 @@ const ViewProfile = () => {
         }
     };
 
+    // Function to handle deleting a comment
     const handleDeleteComment = async (commentId: string) => {
         try {
             const commentRef = ref(database, `users/${userId}/comments/${commentId}`);
-            await remove(commentRef);
+            await remove(commentRef); // Remove comment from Firebase
         } catch (error) {
             console.error('Error deleting comment:', error);
             Alert.alert('Error', 'Failed to delete comment');
         }
     };
 
+    // Show loading indicator while data is being fetched
     if (isLoading) {
         return (
             <SafeAreaView style={styles.container}>
@@ -131,8 +137,10 @@ const ViewProfile = () => {
         );
     }
 
+    // Return null if profile data is not found
     if (!profileData) return null;
 
+    // Destructure profile data
     const {
         profileImage,
         firstName,
@@ -163,7 +171,9 @@ const ViewProfile = () => {
                     </View>
                 </Modal>
 
+                {/* Scrollable profile content */}
                 <ScrollView contentContainerStyle={styles.scrollContent}>
+                    {/* Clicking on profile image opens modal */}
                     <TouchableOpacity onPress={() => setIsModalVisible(true)}>
                         <Image
                             source={profileImage ? { uri: profileImage } : defaultPFP}
@@ -171,11 +181,13 @@ const ViewProfile = () => {
                         />
                     </TouchableOpacity>
 
+                    {/* Display profile name and username */}
                     <Text style={styles.nameText}>
                         {firstName || 'First Name'} {lastName || 'Last Name'}
                     </Text>
                     <Text style={styles.usernameText}>@{username}</Text>
 
+                    {/* Display user location and food preference */}
                     <InfoRow
                         icon={<Icon name="map-pin" size={20} color="#000" />}
                         text={`Location: ${location || 'N/A'}`}
@@ -189,14 +201,15 @@ const ViewProfile = () => {
                     <View style={styles.commentsContainer}>
                         <Text style={styles.commentsTitle}>Comments:</Text>
                         <FlatList
-                            data={comments}
-                            keyExtractor={(item) => item.id}
+                            data={comments}  // Display the list of comments
+                            keyExtractor={(item) => item.id}  // Use comment ID as key
                             renderItem={({ item }) => (
                                 <View style={styles.commentCard}>
                                     <Text style={styles.commentText}>
                                         <Text style={styles.commentUser}>{item.username}: </Text>
                                         {item.text}
                                     </Text>
+                                    {/* Button to delete comment */}
                                     <TouchableOpacity
                                         style={styles.deleteButton}
                                         onPress={() => handleDeleteComment(item.id)}
@@ -206,9 +219,10 @@ const ViewProfile = () => {
                                 </View>
                             )}
                             ListEmptyComponent={
-                                <Text style={styles.commentText}>No comments yet</Text>
+                                <Text style={styles.commentText}>No comments yet</Text>  // Display when no comments are available
                             }
                         />
+                        {/* Input for adding new comment */}
                         <TextInput
                             style={styles.commentInput}
                             placeholder="Write a comment..."
@@ -216,7 +230,7 @@ const ViewProfile = () => {
                             onChangeText={setNewComment}
                             multiline
                         />
-                        <Button title="Add Comment" onPress={handleAddComment} />
+                        <Button title="Add Comment" onPress={handleAddComment} />  {/* Button to add comment */}
                     </View>
                 </ScrollView>
             </SafeAreaView>
