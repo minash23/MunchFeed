@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     StyleSheet,
     Image,
+    TextInput,
     ActivityIndicator,
     Alert,
     RefreshControl,
@@ -17,13 +18,12 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { auth, database } from '../config/firebaseConfig';
 import { ref, get, set } from 'firebase/database';
 import defaultPFP from '../assets/images/defaultPFP.png';
-import { Ionicons } from '@expo/vector-icons'; // Make sure to install expo/vector-icons
+import { Ionicons } from '@expo/vector-icons';
 
 // Type definitions
 type RootStackParamList = {
     PendingRequests: undefined;
     Profile: { userId: string };
-    // Add other screen params as needed
 };
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -39,8 +39,10 @@ type User = {
 const AddFriends = () => {
     const [uid, setUid] = useState<string | null>(null);
     const [suggestedFriends, setSuggestedFriends] = useState<User[]>([]);
+    const [filteredFriends, setFilteredFriends] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [sentRequests, setSentRequests] = useState<Record<string, boolean>>({});
 
     const navigation = useNavigation<NavigationProp>();
@@ -61,8 +63,6 @@ const AddFriends = () => {
                 await fetchSentRequests(user.uid);
             } else {
                 Alert.alert('Error', 'Please log in to view friend suggestions');
-                // Navigate to login if needed
-                // navigation.navigate('Login');
             }
         } catch (error) {
             console.error('Error fetching current user:', error);
@@ -104,15 +104,14 @@ const AddFriends = () => {
                 .filter(([userId, _]) => userId !== currentUserId && !friends.includes(userId))
                 .map(([userId, userData]: [string, any]) => ({
                     id: userId,
-                    pfp: userData.profileImage,
                     username: userData.username,
                     firstname: userData.firstName,
                     lastname: userData.lastName,
                     profileImage: userData.profileImage,
-                }))
-                .slice(0, 10);
+                }));
 
             setSuggestedFriends(suggestions);
+            setFilteredFriends(suggestions);
         } catch (error) {
             console.error('Error fetching suggested friends:', error);
             Alert.alert('Error', 'Failed to load friend suggestions');
@@ -122,61 +121,23 @@ const AddFriends = () => {
         }
     };
 
-    const handleSendFriendRequest = async (friendUserId: string) => {
-        try {
-            const currentUserId = auth.currentUser?.uid;
-            if (!currentUserId) {
-                Alert.alert('Error', 'Please log in to send friend requests');
-                return;
-            }
-
-            // Update friend requests for recipient
-            const friendRequestRef = ref(database, `users/${friendUserId}/friendRequests/${currentUserId}`);
-            await set(friendRequestRef, true);
-
-            // Track sent request
-            const sentRequestRef = ref(database, `users/${currentUserId}/sentRequests/${friendUserId}`);
-            await set(sentRequestRef, true);
-
-            // Update local state
-            setSentRequests(prev => ({
-                ...prev,
-                [friendUserId]: true
-            }));
-
-            Alert.alert('Success', 'Friend request sent!');
-        } catch (error) {
-            console.error('Error sending friend request:', error);
-            Alert.alert('Error', 'Failed to send friend request');
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        if (query.trim() === '') {
+            setFilteredFriends(suggestedFriends);
+        } else {
+            const filtered = suggestedFriends.filter(friend =>
+                friend.username.toLowerCase().includes(query.toLowerCase())
+            );
+            setFilteredFriends(filtered);
         }
     };
-
-    const onRefresh = () => {
-        setRefreshing(true);
-        fetchSuggestedFriends();
-    };
-
-    const navigateToProfile = (userId: string) => {
-        navigation.navigate('ViewProfile', { userId });
-    };
-
-    const renderEmptyState = () => (
-        <View style={styles.emptyStateContainer}>
-            <Ionicons name="people-outline" size={50} color="gray" />
-            <Text style={styles.emptyStateText}>
-                No friend suggestions available at the moment
-            </Text>
-            <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-                <Text style={styles.refreshButtonText}>Refresh</Text>
-            </TouchableOpacity>
-        </View>
-    );
 
     const renderUserItem = ({ item }: { item: User }) => (
         <View style={styles.userContainer}>
             <TouchableOpacity
                 style={styles.userInfoContainer}
-                onPress={() => navigateToProfile(item.id)}
+                onPress={() => navigation.navigate('Profile', { userId: item.id })}
             >
                 <Image
                     source={item.profileImage ? { uri: item.profileImage } : defaultPFP}
@@ -203,173 +164,98 @@ const AddFriends = () => {
         </View>
     );
 
+    const handleSendFriendRequest = async (friendUserId: string) => {
+        try {
+            const currentUserId = auth.currentUser?.uid;
+            if (!currentUserId) {
+                Alert.alert('Error', 'Please log in to send friend requests');
+                return;
+            }
+
+            const friendRequestRef = ref(database, `users/${friendUserId}/friendRequests/${currentUserId}`);
+            await set(friendRequestRef, true);
+
+            const sentRequestRef = ref(database, `users/${currentUserId}/sentRequests/${friendUserId}`);
+            await set(sentRequestRef, true);
+
+            setSentRequests(prev => ({
+                ...prev,
+                [friendUserId]: true,
+            }));
+
+            Alert.alert('Success', 'Friend request sent!');
+        } catch (error) {
+            console.error('Error sending friend request:', error);
+            Alert.alert('Error', 'Failed to send friend request');
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
-            <Text style={styles.headerText}>CONNECT</Text>
-            <Text style={styles.subheaderText}>Suggested Friends</Text>
-
-            {isLoading && !refreshing ? (
+            <Text style={styles.headerText}>Add Friends</Text>
+            <TextInput
+                style={styles.searchBar}
+                placeholder="Search by username..."
+                value={searchQuery}
+                onChangeText={handleSearch}
+            />
+            {isLoading ? (
                 <ActivityIndicator style={styles.loader} size="large" color="black" />
             ) : (
                 <FlatList
-                    data={suggestedFriends}
+                    data={filteredFriends}
                     keyExtractor={(item) => item.id}
                     renderItem={renderUserItem}
-                    ListEmptyComponent={renderEmptyState}
                     contentContainerStyle={styles.listContainer}
                     refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            tintColor="black"
-                        />
+                        <RefreshControl refreshing={refreshing} onRefresh={fetchSuggestedFriends} />
                     }
                 />
             )}
-
-            <TouchableOpacity
-                style={styles.pendingRequestsButton}
-                onPress={() => navigation.navigate('PendingRequests')}
-            >
-                <Text style={styles.pendingRequestsText}>
-                    View Pending Requests
-                </Text>
-            </TouchableOpacity>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: 'white',
-    },
-    headerText: {
-        fontSize: 32,
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-        fontWeight: 'bold',
-        marginTop: 10,
-        marginBottom: 10,
-        paddingHorizontal: 15,
-    },
-    subheaderText: {
-        fontSize: 20,
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-        color: '#666',
+    container: { flex: 1, backgroundColor: 'white', paddingHorizontal: 15 },
+    headerText: { fontSize: 32, fontWeight: 'bold', marginTop: 10, marginBottom: 20 },
+    searchBar: {
+        height: 40,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 8,
+        paddingHorizontal: 10,
         marginBottom: 15,
-        paddingHorizontal: 15,
     },
-    listContainer: {
-        flexGrow: 1,
-        paddingHorizontal: 15,
-    },
+    listContainer: { flexGrow: 1 },
     userContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 12,
+        justifyContent: 'space-between',
+        paddingVertical: 10,
         borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: '#e0e0e0',
     },
-    userInfoContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    profileImage: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        marginRight: 12,
-    },
-    userInfo: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    nameText: {
-        fontSize: 16,
-        color: 'black',
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-        fontWeight: '600',
-    },
-    usernameText: {
-        fontSize: 14,
-        color: '#666',
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-        marginTop: 2,
-    },
+    userInfoContainer: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    profileImage: { width: 50, height: 50, borderRadius: 25, marginRight: 10 },
+    userInfo: { flex: 1 },
+    nameText: { fontSize: 16, fontWeight: '600' },
+    usernameText: { fontSize: 14, color: '#666' },
     addButton: {
         backgroundColor: 'black',
-        paddingHorizontal: 20,
-        paddingVertical: 8,
         borderRadius: 20,
-        minWidth: 80,
-        alignItems: 'center',
+        paddingHorizontal: 15,
+        paddingVertical: 5,
     },
-    addButtonText: {
-        color: 'white',
-        fontWeight: '600',
-        fontSize: 14,
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-    },
+    addButtonText: { color: 'white', fontSize: 14 },
     requestSentButton: {
         backgroundColor: '#e0e0e0',
-        paddingHorizontal: 20,
-        paddingVertical: 8,
         borderRadius: 20,
-        minWidth: 80,
-        alignItems: 'center',
+        paddingHorizontal: 15,
+        paddingVertical: 5,
     },
-    requestSentText: {
-        color: '#666',
-        fontWeight: '600',
-        fontSize: 14,
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-    },
-    emptyStateContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 40,
-    },
-    emptyStateText: {
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-        fontSize: 16,
-        color: 'gray',
-        textAlign: 'center',
-        marginTop: 10,
-        marginBottom: 20,
-    },
-    refreshButton: {
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        backgroundColor: 'black',
-        borderRadius: 20,
-    },
-    refreshButtonText: {
-        color: 'white',
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    pendingRequestsButton: {
-        margin: 15,
-        backgroundColor: 'black',
-        borderRadius: 25,
-        padding: 15,
-        alignItems: 'center',
-    },
-    pendingRequestsText: {
-        color: 'white',
-        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    loader: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
+    requestSentText: { color: '#666', fontSize: 14 },
+    loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });
 
 export default AddFriends;
