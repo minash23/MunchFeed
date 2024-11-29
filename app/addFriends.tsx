@@ -20,7 +20,7 @@ import { ref, get, set } from 'firebase/database';
 import defaultPFP from '../assets/images/defaultPFP.png';
 import { Ionicons } from '@expo/vector-icons';
 
-// Type definitions
+// Type definitions for navigation and user data
 type RootStackParamList = {
     PendingRequests: undefined;
     Profile: { userId: string };
@@ -37,30 +37,33 @@ type User = {
 };
 
 const AddFriends = () => {
-    const [uid, setUid] = useState<string | null>(null);
-    const [suggestedFriends, setSuggestedFriends] = useState<User[]>([]);
-    const [filteredFriends, setFilteredFriends] = useState<User[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [refreshing, setRefreshing] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [sentRequests, setSentRequests] = useState<Record<string, boolean>>({});
+    // State variables to manage data and UI
+    const [uid, setUid] = useState<string | null>(null); // Current user ID
+    const [suggestedFriends, setSuggestedFriends] = useState<User[]>([]); // List of suggested friends
+    const [filteredFriends, setFilteredFriends] = useState<User[]>([]); // Filtered list based on search query
+    const [isLoading, setIsLoading] = useState(false); // Loader state
+    const [refreshing, setRefreshing] = useState(false); // Refreshing state
+    const [searchQuery, setSearchQuery] = useState(''); // Search input
+    const [sentRequests, setSentRequests] = useState<Record<string, boolean>>({}); // Track sent requests
 
+    // Navigation and lifecycle hooks
     const navigation = useNavigation<NavigationProp>();
     const isFocused = useIsFocused();
 
     useEffect(() => {
         if (isFocused) {
-            fetchCurrentUser();
+            fetchCurrentUser(); // Fetch current user data when the screen is focused
         }
     }, [isFocused]);
 
+    // Function to fetch current user details
     const fetchCurrentUser = async () => {
         try {
             const user = auth.currentUser;
             if (user) {
-                setUid(user.uid);
-                await fetchSuggestedFriends();
-                await fetchSentRequests(user.uid);
+                setUid(user.uid); // Set user ID
+                await fetchSuggestedFriends(); // Fetch suggested friends
+                await fetchSentRequests(user.uid); // Fetch sent friend requests
             } else {
                 Alert.alert('Error', 'Please log in to view friend suggestions');
             }
@@ -70,20 +73,22 @@ const AddFriends = () => {
         }
     };
 
+    // Function to fetch the list of sent friend requests
     const fetchSentRequests = async (currentUserId: string) => {
         try {
             const sentRequestsRef = ref(database, `users/${currentUserId}/sentRequests`);
             const snapshot = await get(sentRequestsRef);
             if (snapshot.exists()) {
-                setSentRequests(snapshot.val());
+                setSentRequests(snapshot.val()); // Set sent requests
             }
         } catch (error) {
             console.error('Error fetching sent requests:', error);
         }
     };
 
+    // Function to fetch suggested friends for the current user
     const fetchSuggestedFriends = async () => {
-        setIsLoading(true);
+        setIsLoading(true); // Show loading indicator
         try {
             const currentUserId = auth.currentUser?.uid;
             if (!currentUserId) return;
@@ -95,10 +100,12 @@ const AddFriends = () => {
                 setSuggestedFriends([]);
                 return;
             }
+            // Get list of current user's friends to exclude them from suggestions
             const friendsRef = ref(database, `users/${currentUserId}/friends`);
             const friendsSnapshot = await get(friendsRef);
             const friends = friendsSnapshot.exists() ? Object.keys(friendsSnapshot.val()) : [];
 
+            // Get all users and filter out the current user's friends
             const allUsers = snapshot.val();
             const suggestions = Object.entries(allUsers)
                 .filter(([userId, _]) => userId !== currentUserId && !friends.includes(userId))
@@ -111,36 +118,38 @@ const AddFriends = () => {
                 }));
 
             setSuggestedFriends(suggestions);
-            setFilteredFriends(suggestions);
+            setFilteredFriends(suggestions); // Set both suggested and filtered friends
         } catch (error) {
             console.error('Error fetching suggested friends:', error);
             Alert.alert('Error', 'Failed to load friend suggestions');
         } finally {
-            setIsLoading(false);
-            setRefreshing(false);
+            setIsLoading(false); // Hide loading indicator
+            setRefreshing(false); // Stop refreshing state
         }
     };
 
+    // Handle search functionality
     const handleSearch = (query: string) => {
         setSearchQuery(query);
         if (query.trim() === '') {
-            setFilteredFriends(suggestedFriends);
+            setFilteredFriends(suggestedFriends); // Show all if search is cleared
         } else {
             const filtered = suggestedFriends.filter(friend =>
                 friend.username.toLowerCase().includes(query.toLowerCase())
             );
-            setFilteredFriends(filtered);
+            setFilteredFriends(filtered); // Filter friends by username
         }
     };
 
+    // Function to render each user in the list
     const renderUserItem = ({ item }: { item: User }) => (
         <View style={styles.userContainer}>
             <TouchableOpacity
                 style={styles.userInfoContainer}
-                onPress={() => navigation.navigate('Profile', { userId: item.id })}
+                onPress={() => navigation.navigate('Profile', { userId: item.id })} // Navigate to profile on click
             >
                 <Image
-                    source={item.profileImage ? { uri: item.profileImage } : defaultPFP}
+                    source={item.profileImage ? { uri: item.profileImage } : defaultPFP} // Display profile image or default
                     style={styles.profileImage}
                 />
                 <View style={styles.userInfo}>
@@ -149,21 +158,23 @@ const AddFriends = () => {
                 </View>
             </TouchableOpacity>
 
+            {/* Display Add button if request not sent */}
             {!sentRequests[item.id] ? (
                 <TouchableOpacity
-                    onPress={() => handleSendFriendRequest(item.id)}
+                    onPress={() => handleSendFriendRequest(item.id)} // Handle sending friend request
                     style={styles.addButton}
                 >
                     <Text style={styles.addButtonText}>Add</Text>
                 </TouchableOpacity>
             ) : (
                 <View style={styles.requestSentButton}>
-                    <Text style={styles.requestSentText}>Sent</Text>
+                    <Text style={styles.requestSentText}>Sent</Text> {/* Show "Sent" if request is sent */}
                 </View>
             )}
         </View>
     );
 
+    // Function to handle sending a friend request
     const handleSendFriendRequest = async (friendUserId: string) => {
         try {
             const currentUserId = auth.currentUser?.uid;
@@ -173,14 +184,14 @@ const AddFriends = () => {
             }
 
             const friendRequestRef = ref(database, `users/${friendUserId}/friendRequests/${currentUserId}`);
-            await set(friendRequestRef, true);
+            await set(friendRequestRef, true); // Set the friend request in Firebase
 
             const sentRequestRef = ref(database, `users/${currentUserId}/sentRequests/${friendUserId}`);
-            await set(sentRequestRef, true);
+            await set(sentRequestRef, true); // Mark the request as sent
 
             setSentRequests(prev => ({
                 ...prev,
-                [friendUserId]: true,
+                [friendUserId]: true, // Update sent request status locally
             }));
 
             Alert.alert('Success', 'Friend request sent!');
@@ -197,18 +208,18 @@ const AddFriends = () => {
                 style={styles.searchBar}
                 placeholder="Search by username..."
                 value={searchQuery}
-                onChangeText={handleSearch}
+                onChangeText={handleSearch} // Handle search input changes
             />
             {isLoading ? (
                 <ActivityIndicator style={styles.loader} size="large" color="black" />
             ) : (
                 <FlatList
                     data={filteredFriends}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderUserItem}
+                    keyExtractor={(item) => item.id} // Set unique key for each item
+                    renderItem={renderUserItem} // Render each user item
                     contentContainerStyle={styles.listContainer}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={fetchSuggestedFriends} />
+                        <RefreshControl refreshing={refreshing} onRefresh={fetchSuggestedFriends} /> // Pull-to-refresh
                     }
                 />
             )}
@@ -237,25 +248,25 @@ const styles = StyleSheet.create({
         borderBottomColor: '#e0e0e0',
     },
     userInfoContainer: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    profileImage: { width: 50, height: 50, borderRadius: 25, marginRight: 10 },
-    userInfo: { flex: 1 },
-    nameText: { fontSize: 16, fontWeight: '600' },
-    usernameText: { fontSize: 14, color: '#666' },
+    profileImage: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
+    userInfo: { flexDirection: 'column' },
+    nameText: { fontSize: 16, fontWeight: 'bold' },
+    usernameText: { fontSize: 14, color: '#777' },
     addButton: {
-        backgroundColor: 'black',
-        borderRadius: 20,
+        backgroundColor: '#1e90ff',
         paddingHorizontal: 15,
-        paddingVertical: 5,
+        paddingVertical: 6,
+        borderRadius: 20,
     },
-    addButtonText: { color: 'white', fontSize: 14 },
+    addButtonText: { color: 'white', fontSize: 16 },
     requestSentButton: {
-        backgroundColor: '#e0e0e0',
-        borderRadius: 20,
+        backgroundColor: '#cccccc',
         paddingHorizontal: 15,
-        paddingVertical: 5,
+        paddingVertical: 6,
+        borderRadius: 20,
     },
-    requestSentText: { color: '#666', fontSize: 14 },
-    loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    requestSentText: { color: 'white', fontSize: 16 },
+    loader: { marginTop: 20 },
 });
 
 export default AddFriends;
