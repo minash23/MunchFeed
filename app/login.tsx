@@ -14,6 +14,7 @@ import {
   Platform,
   Modal,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
@@ -26,24 +27,25 @@ const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
 
 export default function LoginPage() {
-  // State hooks to manage the input fields, loading states, and modal visibility
-  const [username, setUsername] = useState(''); // Stores username (email)
-  const [password, setPassword] = useState(''); // Stores password
-  const [isLoading, setIsLoading] = useState(false); // Shows loading spinner while waiting for Firebase response
+  // State hooks to manage input fields, loading states, and modal visibility
+  const [username, setUsername] = useState(''); // Email input
+  const [password, setPassword] = useState(''); // Password input
+  const [isLoading, setIsLoading] = useState(false); // Loading spinner during Firebase response
   const [showPassword, setShowPassword] = useState(false); // Toggles password visibility
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // Controls visibility of the password reset modal
-  const [resetEmail, setResetEmail] = useState(''); // Stores the email for password reset
-  const [isResetting, setIsResetting] = useState(false); // Shows loading spinner for password reset
+  const [showForgotPassword, setShowForgotPassword] = useState(false); // Controls forgot password modal
+  const [resetEmail, setResetEmail] = useState(''); // Email for password reset
+  const [isResetting, setIsResetting] = useState(false); // Loading spinner during password reset
   const navigation = useNavigation(); // For navigating between screens
 
-  // Function to validate the email format
+  // Function to validate email format
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email); // Returns true if email is valid
+    return emailRegex.test(email); // Returns true if email format is valid
   };
 
   // Function to handle login
   const handleLogin = async () => {
+    // Validate input fields
     if (username.trim() === '' || password.trim() === '') {
       Alert.alert('Error', 'Please fill in both fields');
       return;
@@ -54,14 +56,14 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true); // Start loading spinner
+    setIsLoading(true); // Show loading spinner
     try {
       const userCredential = await signInWithEmailAndPassword(auth, username, password); // Firebase login
-      console.log(userCredential.user); // Logs user info on successful login
+      console.log(userCredential.user); // Log user information
       navigation.navigate('Main'); // Navigate to 'Main' screen upon successful login
     } catch (error) {
       let errorMessage = 'An error occurred during login';
-      // Handle specific Firebase errors
+      // Handle Firebase-specific errors
       switch (error.code) {
         case 'auth/user-not-found':
           errorMessage = 'No account found with this email';
@@ -77,7 +79,7 @@ export default function LoginPage() {
           break;
       }
       Alert.alert('Login Error', errorMessage); // Show error message
-      console.log(error.code, error.message); // Log error for debugging
+      console.log(error.code, error.message); // Log error details
     } finally {
       setIsLoading(false); // Stop loading spinner
     }
@@ -95,9 +97,9 @@ export default function LoginPage() {
       return;
     }
 
-    setIsResetting(true); // Start loading spinner for password reset
+    setIsResetting(true); // Start loading spinner for reset process
     try {
-      await sendPasswordResetEmail(auth, resetEmail); // Firebase password reset
+      await sendPasswordResetEmail(auth, resetEmail); // Firebase password reset request
       Alert.alert(
           'Success',
           'Password reset email sent! Please check your inbox.',
@@ -106,7 +108,7 @@ export default function LoginPage() {
       setResetEmail(''); // Clear reset email field
     } catch (error) {
       let errorMessage = 'An error occurred while sending reset email';
-      // Handle specific Firebase errors
+      // Handle Firebase-specific errors
       switch (error.code) {
         case 'auth/user-not-found':
           errorMessage = 'No account found with this email address';
@@ -124,7 +126,7 @@ export default function LoginPage() {
     }
   };
 
-  // Navigate to the SignUp page
+  // Function to navigate to SignUp page
   const handleSignUp = () => {
     navigation.navigate('SignUp');
   };
@@ -132,21 +134,26 @@ export default function LoginPage() {
   return (
       <KeyboardAvoidingView
           style={styles.keyboardView}
-          behavior={"padding"}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={100}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <SafeAreaView style={styles.container}>
-            <View style={styles.scrollContainer}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContainer} // Ensures content is scrollable
+                keyboardShouldPersistTaps="handled"
+            >
+              {/* Splash Logo */}
               <View style={styles.imageContainer}>
                 <Image
                     source={splash}
                     style={styles.logo}
-                    resizeMode="contain"
+                    resizeMode="contain" // Ensures logo scales properly without distortion
                 />
               </View>
 
               <View style={styles.formContainer}>
+                {/* Welcome Text */}
                 <Text style={styles.title}>Welcome Back</Text>
                 <Text style={styles.subtitle}>Sign in to continue</Text>
 
@@ -214,7 +221,7 @@ export default function LoginPage() {
                   </TouchableOpacity>
                 </View>
               </View>
-            </View>
+            </ScrollView>
 
             {/* Modal for Forgot Password */}
             <Modal
@@ -253,14 +260,10 @@ export default function LoginPage() {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={() => {
-                        setShowForgotPassword(false); // Close modal
-                        setResetEmail(''); // Clear email field
-                      }}
-                      disabled={isResetting} // Disable cancel button while resetting
+                      style={styles.closeButton}
+                      onPress={() => setShowForgotPassword(false)}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={styles.closeText}>Close</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -271,92 +274,100 @@ export default function LoginPage() {
   );
 }
 
+// Styling for the page components
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   keyboardView: {
     flex: 1,
   },
-  container: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
   scrollContainer: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    padding: 20,
   },
   imageContainer: {
-    marginBottom: 40,
+    alignItems: 'center',
+    marginTop: windowHeight * .001,
+    marginBottom: 10,
   },
   logo: {
     width: windowWidth * 0.9,
     height: windowHeight * 0.5,
   },
   formContainer: {
-    width: '80%',
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    textAlign: 'center',
+    marginBottom: 10,
   },
   subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: '#777',
-    marginVertical: 10,
+    fontSize: 16,
+    color: '#7F7F7F',
+    marginBottom: 20,
   },
   inputContainer: {
+    width: '100%',
     marginBottom: 15,
   },
   input: {
+    width: '100%',
     height: 50,
-    borderColor: '#ccc',
+    borderColor: '#A9A9A9',
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 10,
     paddingLeft: 15,
     fontSize: 16,
   },
   showPasswordButton: {
     position: 'absolute',
     right: 10,
-    top: 15,
+    top: 10,
   },
   showPasswordText: {
-    color: '#007bff',
+    color: '#007BFF',
   },
   forgotPasswordButton: {
     marginTop: 10,
-    marginBottom: 20,
   },
   forgotPasswordText: {
-    textAlign: 'right',
-    color: '#007bff',
+    color: '#007BFF',
+    fontSize: 14,
   },
   button: {
+    width: '100%',
     height: 50,
-    borderRadius: 5,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
   },
   loginButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#007BFF',
+    marginTop: 20,
+  },
+  resetButton: {
+    backgroundColor: '#28A745',
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
+    fontWeight: 'bold',
   },
   signupContainer: {
+    marginTop: 20,
     flexDirection: 'row',
-    justifyContent: 'center',
   },
   signupText: {
     fontSize: 14,
-    color: '#777',
   },
   signupLink: {
+    color: '#007BFF',
     fontSize: 14,
-    color: '#007bff',
+    fontWeight: 'bold',
   },
   modalContainer: {
     flex: 1,
@@ -365,31 +376,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    width: '80%',
     backgroundColor: 'white',
-    padding: 30,
+    padding: 20,
     borderRadius: 10,
+    width: '80%',
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 10,
   },
   modalSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
+    color: '#7F7F7F',
+    marginBottom: 20,
     textAlign: 'center',
-    marginVertical: 10,
   },
   modalInput: {
-    marginBottom: 20,
+    marginBottom: 15,
   },
-  resetButton: {
-    backgroundColor: '#4CAF50',
-  },
-  cancelButton: {
+  closeButton: {
     marginTop: 10,
   },
-  cancelButtonText: {
-    color: '#FF0000',
+  closeText: {
+    color: '#007BFF',
+    fontSize: 16,
   },
 });
