@@ -40,6 +40,7 @@ type Comment = {
     id: string;
     text: string;
     username: string; // Comment's author's username
+    timestamp: number; // Timestamp when the comment was created
 };
 
 // InfoRow component for displaying individual profile details with icons
@@ -90,6 +91,7 @@ const ViewProfile = () => {
                         id: childSnapshot.key!, // Comment ID
                         text: childSnapshot.val().text, // Comment text
                         username: childSnapshot.val().username, // Comment author's username
+                        timestamp: childSnapshot.val().timestamp, // Comment timestamp
                     });
                 });
                 setComments(fetchedComments); // Set comments in state
@@ -98,6 +100,15 @@ const ViewProfile = () => {
 
         fetchProfileData(); // Fetch profile data
         fetchComments(); // Fetch comments
+
+        // Set up a periodic function to check for old comments and delete them
+        const intervalId = setInterval(() => {
+            deleteOldComments();  // Call the function to delete old comments
+        }, 60 * 60 * 1000); // Check every hour (60 minutes)
+
+        // Cleanup the interval on component unmount
+        return () => clearInterval(intervalId);
+
     }, [userId]); // Re-run effect when userId changes
 
     // Function to handle adding a new comment
@@ -109,7 +120,11 @@ const ViewProfile = () => {
 
         try {
             const commentsRef = ref(database, `users/${userId}/comments`);
-            await push(commentsRef, { text: newComment.trim(), username: 'Anonymous' }); // Add new comment to Firebase
+            await push(commentsRef, {
+                text: newComment.trim(),
+                username: 'Anonymous',
+                timestamp: Date.now(), // Add the current timestamp
+            }); // Add new comment to Firebase
             setNewComment(''); // Clear the input field
         } catch (error) {
             console.error('Error adding comment:', error);
@@ -126,6 +141,18 @@ const ViewProfile = () => {
             console.error('Error deleting comment:', error);
             Alert.alert('Error', 'Failed to delete comment');
         }
+    };
+
+    // Function to delete comments older than 24 hours
+    const deleteOldComments = () => {
+        const currentTime = Date.now();
+        comments.forEach((comment) => {
+            const timeElapsed = currentTime - comment.timestamp;
+            const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+            if (timeElapsed > twentyFourHours) {
+                handleDeleteComment(comment.id); // Delete comment if older than 24 hours
+            }
+        });
     };
 
     // Show loading indicator while data is being fetched
@@ -200,37 +227,36 @@ const ViewProfile = () => {
                     {/* Comments Section */}
                     <View style={styles.commentsContainer}>
                         <Text style={styles.commentsTitle}>Comments:</Text>
-                        <FlatList
-                            data={comments}  // Display the list of comments
-                            keyExtractor={(item) => item.id}  // Use comment ID as key
-                            renderItem={({ item }) => (
-                                <View style={styles.commentCard}>
+
+                        {/* Make the comments section scrollable */}
+                        <ScrollView style={styles.commentList}>
+                            {comments.map((comment) => (
+                                <View key={comment.id} style={styles.commentCard}>
                                     <Text style={styles.commentText}>
-                                        <Text style={styles.commentUser}>{item.username}: </Text>
-                                        {item.text}
+                                        <Text style={styles.commentUser}>{comment.username}: </Text>
+                                        {comment.text}
                                     </Text>
                                     {/* Button to delete comment */}
                                     <TouchableOpacity
                                         style={styles.deleteButton}
-                                        onPress={() => handleDeleteComment(item.id)}
+                                        onPress={() => handleDeleteComment(comment.id)}
                                     >
                                         <Text style={styles.deleteButtonText}>Delete</Text>
                                     </TouchableOpacity>
                                 </View>
-                            )}
-                            ListEmptyComponent={
-                                <Text style={styles.commentText}>No comments yet</Text>  // Display when no comments are available
-                            }
-                        />
-                        {/* Input for adding new comment */}
+                            ))}
+                        </ScrollView>
+                    </View>
+
+                    {/* Add comment input section */}
+                    <View style={styles.commentInputContainer}>
                         <TextInput
                             style={styles.commentInput}
-                            placeholder="Write a comment..."
+                            placeholder="Add a comment..."
                             value={newComment}
                             onChangeText={setNewComment}
-                            multiline
                         />
-                        <Button title="Add Comment" onPress={handleAddComment} />  {/* Button to add comment */}
+                        <Button title="Add Comment" onPress={handleAddComment} />
                     </View>
                 </ScrollView>
             </SafeAreaView>
@@ -238,103 +264,90 @@ const ViewProfile = () => {
     );
 };
 
+// Styles for the profile screen
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        padding: 20,
+        backgroundColor: 'white',
     },
     scrollContent: {
         alignItems: 'center',
-        padding: 20,
     },
     profileImage: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        marginBottom: 20,
+        width: 150,
+        height: 150,
+        borderRadius: 75,
     },
     modalContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalImage: {
-        width: '90%',
-        height: '70%',
-        resizeMode: 'contain',
+        width: 300,
+        height: 300,
+        borderRadius: 150,
     },
     nameText: {
         fontSize: 24,
-        fontWeight: '600',
-        color: '#000',
-        marginBottom: 8,
-        fontFamily: 'Trebuchet MS',
+        fontWeight: 'bold',
     },
     usernameText: {
-        fontSize: 20,
-        color: '#888',
-        marginBottom: 16,
-        fontFamily: 'Trebuchet MS',
-    },
-    infoText: {
         fontSize: 18,
-        color: '#333',
-        marginLeft: 8,
-        fontFamily: 'Trebuchet MS',
+        color: 'gray',
     },
     infoContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginTop: 10,
+    },
+    infoText: {
+        marginLeft: 10,
+        fontSize: 16,
     },
     commentsContainer: {
-        width: '100%',
         marginTop: 20,
+        width: '100%',
     },
     commentsTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: 'bold',
-        marginBottom: 8,
-        color: '#000',
+        marginBottom: 10,
     },
     commentCard: {
+        marginBottom: 10,
+        padding: 10,
         backgroundColor: '#f9f9f9',
         borderRadius: 8,
-        padding: 12,
-        marginBottom: 10,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        shadowOffset: { width: 0, height: 1 },
     },
     commentText: {
         fontSize: 16,
-        color: '#555',
     },
     commentUser: {
         fontWeight: 'bold',
     },
     deleteButton: {
-        marginTop: 8,
-        alignSelf: 'flex-end',
-        backgroundColor: 'red',
-        padding: 6,
+        marginTop: 5,
+        backgroundColor: '#ff4d4d',
+        padding: 5,
         borderRadius: 5,
     },
     deleteButtonText: {
         color: 'white',
-        fontWeight: 'bold',
+        fontSize: 14,
     },
     commentInput: {
         height: 40,
-        borderColor: '#ccc',
+        width: '80%',
+        borderColor: 'gray',
         borderWidth: 1,
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        marginBottom: 10,
+        marginRight: 10,
+        paddingLeft: 10,
+        borderRadius: 5,
     },
 });
+
 
 export default ViewProfile;
