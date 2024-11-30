@@ -185,6 +185,11 @@ export default function ProfilePage() {
         }
     };
 
+    const navigateToProfile = (userId: string) => {
+        // @ts-ignore
+        navigation.navigate('ViewProfile', { userId });
+    };
+
     const saveUserProfile = async () => {
         if (!validateForm()) {
             Alert.alert('Validation Error', 'Please correct the errors in the form.');
@@ -264,7 +269,12 @@ export default function ProfilePage() {
 
                         <View style={styles.detailsContainer}>
                             <Text style={styles.label}>Account Details</Text>
-
+                            <TouchableOpacity
+                                style={styles.viewProfileCardButton}
+                                onPress={() => navigateToProfile(auth.currentUser.uid)}
+                            >
+                                <Text style={styles.viewProfileCardText}>View Profile Card</Text>
+                            </TouchableOpacity>
                             {renderField('Username *', 'username', {
                                 placeholder: 'Enter username',
                                 autoCapitalize: 'none'
@@ -422,6 +432,19 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontFamily: Platform.select({ ios: 'Trebuchet MS', android: 'Roboto' }),
+        fontWeight: '600',
+    },
+    viewProfileCardButton: {
+        margin: 15,
+        backgroundColor: 'black',
+        borderRadius: 25,
+        padding: 15,
+        alignItems: 'center',
+    },
+    viewProfileCardText: {
+        color: 'white',
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+        fontSize: 16,
         fontWeight: '600',
     },
 });
