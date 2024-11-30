@@ -23,27 +23,27 @@ import debounce from 'lodash/debounce';
 // @ts-ignore
 import splash from '../assets/images/splash.png';
 
-// Form validation constants for different fields
+// Form validation constants
 const VALIDATION_RULES = {
     USERNAME: {
-        pattern: /^[a-zA-Z0-9_]{3,20}$/, // Username must be 3-20 characters, letters, numbers, or underscores
+        pattern: /^[a-zA-Z0-9_]{3,20}$/,
         message: 'Username must be 3-20 characters and contain only letters, numbers, and underscores'
     },
     EMAIL: {
-        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // Valid email regex
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         message: 'Please enter a valid email address'
     },
     PASSWORD: {
-        pattern: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, // Password must contain letters, numbers, and special chars
+        pattern: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/,
         message: 'Password must be at least 8 characters and include letters, numbers, and special characters'
     },
     PHONE: {
-        pattern: /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/, // Valid phone number regex
+        pattern: /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/,
         message: 'Please enter a valid phone number'
     }
 };
 
-// Custom reusable input component
+// Custom input component for reusability
 const FormInput = ({
                        value,
                        onChangeText,
@@ -78,16 +78,15 @@ const FormInput = ({
                 onPress={onTogglePassword}
             >
                 <Text style={styles.showPasswordText}>
-                    {secureTextEntry ? 'Show' : 'Hide'} // Toggles password visibility
+                    {secureTextEntry ? 'Show' : 'Hide'}
                 </Text>
             </TouchableOpacity>
         )}
-        {error && <Text style={styles.errorText}>{error}</Text>} // Shows error message if validation fails
+        {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
 );
 
 export default function SignupPage() {
-    // State to store form data
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -96,17 +95,12 @@ export default function SignupPage() {
         password: '',
         phoneNumber: ''
     });
-
-    // State to store form field errors
     const [formErrors, setFormErrors] = useState({});
-    // State for password visibility toggle
     const [showPassword, setShowPassword] = useState(false);
-    // State to manage loading state while signing up
     const [isLoading, setIsLoading] = useState(false);
-    // Navigation hook for navigating between screens
     const navigation = useNavigation();
 
-    // Debounced function to check username availability in the database
+    // Debounced username availability check
     const checkUsernameAvailability = useCallback(
         debounce(async (username) => {
             if (username && VALIDATION_RULES.USERNAME.pattern.test(username)) {
@@ -116,40 +110,39 @@ export default function SignupPage() {
                 if (snapshot.exists()) {
                     setFormErrors(prev => ({
                         ...prev,
-                        username: 'Username is already taken' // Shows error if username is taken
+                        username: 'Username is already taken'
                     }));
                 }
             }
-        }, 500), // Debounce delay of 500ms
+        }, 500),
         []
     );
 
-    // Field validation function based on rules
     const validateField = (name, value) => {
         let error = '';
 
         if (!value.trim()) {
-            error = 'This field is required'; // Checks if field is empty
+            error = 'This field is required';
         } else {
             switch (name) {
                 case 'username':
                     if (!VALIDATION_RULES.USERNAME.pattern.test(value)) {
-                        error = VALIDATION_RULES.USERNAME.message; // Validates username
+                        error = VALIDATION_RULES.USERNAME.message;
                     }
                     break;
                 case 'email':
                     if (!VALIDATION_RULES.EMAIL.pattern.test(value)) {
-                        error = VALIDATION_RULES.EMAIL.message; // Validates email
+                        error = VALIDATION_RULES.EMAIL.message;
                     }
                     break;
                 case 'password':
                     if (!VALIDATION_RULES.PASSWORD.pattern.test(value)) {
-                        error = VALIDATION_RULES.PASSWORD.message; // Validates password
+                        error = VALIDATION_RULES.PASSWORD.message;
                     }
                     break;
                 case 'phoneNumber':
                     if (!VALIDATION_RULES.PHONE.pattern.test(value)) {
-                        error = VALIDATION_RULES.PHONE.message; // Validates phone number
+                        error = VALIDATION_RULES.PHONE.message;
                     }
                     break;
             }
@@ -158,11 +151,10 @@ export default function SignupPage() {
         return error;
     };
 
-    // Handles input change and validates the specific field
     const handleInputChange = (name, value) => {
         setFormData(prev => ({ ...prev, [name]: value }));
 
-        // Clears previous error when user starts typing
+        // Clear previous error when user starts typing
         setFormErrors(prev => ({ ...prev, [name]: '' }));
 
         // Validate field on change
@@ -171,13 +163,12 @@ export default function SignupPage() {
             setFormErrors(prev => ({ ...prev, [name]: error }));
         }
 
-        // Check username availability only when username is being updated
+        // Check username availability
         if (name === 'username') {
             checkUsernameAvailability(value);
         }
     };
 
-    // Validates all form fields
     const validateForm = () => {
         const errors = {};
         Object.keys(formData).forEach(key => {
@@ -186,18 +177,17 @@ export default function SignupPage() {
                 errors[key] = error;
             }
         });
-        setFormErrors(errors); // Update form errors state
-        return Object.keys(errors).length === 0; // Return true if no errors
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
     };
 
-    // Handles form submission and user signup
     const handleSignup = async () => {
         if (!validateForm()) {
-            Alert.alert('Error', 'Please fix the errors in the form'); // Show alert if form is invalid
+            Alert.alert('Error', 'Please fix the errors in the form');
             return;
         }
 
-        setIsLoading(true); // Set loading state to true while signing up
+        setIsLoading(true);
         try {
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
@@ -216,13 +206,13 @@ export default function SignupPage() {
                 createdAt: new Date().toISOString()
             };
 
-            // Atomic operation to add user data to the database
+            // Use a transaction to ensure atomicity
             await Promise.all([
                 set(ref(db, `users/${user.uid}`), userData),
-                set(ref(db, `usernames/${formData.username.toLowerCase()}`), user.uid) // Reserve username
+                set(ref(db, `usernames/${formData.username.toLowerCase()}`), user.uid)
             ]);
 
-            // Reset form after successful signup
+            // Reset form
             setFormData({
                 firstName: '',
                 lastName: '',
@@ -233,9 +223,8 @@ export default function SignupPage() {
             });
             setFormErrors({});
 
-            navigation.navigate('Profile'); // Navigate to the Profile screen after successful signup
+            navigation.navigate('Profile');
         } catch (error) {
-            // Show specific error messages based on Firebase error codes
             const errorMessages = {
                 'auth/email-already-in-use': 'This email is already registered',
                 'auth/invalid-email': 'Invalid email address',
@@ -245,10 +234,10 @@ export default function SignupPage() {
 
             Alert.alert(
                 'Signup Error',
-                errorMessages[error.code] || 'An error occurred during signup' // Default error message
+                errorMessages[error.code] || 'An error occurred during signup'
             );
         } finally {
-            setIsLoading(false); // Set loading state to false after the operation is complete
+            setIsLoading(false);
         }
     };
 
@@ -275,72 +264,82 @@ export default function SignupPage() {
 
                             <View style={styles.formContainer}>
                                 <Text style={styles.title}>Create Account</Text>
+                                <Text style={styles.subtitle}>Sign up to get started</Text>
 
-                                {/* First Name Input */}
-                                <FormInput
-                                    value={formData.firstName}
-                                    onChangeText={text => handleInputChange('firstName', text)}
-                                    placeholder="First Name"
-                                    error={formErrors.firstName}
-                                />
+                                <View style={styles.nameRow}>
+                                    <FormInput
+                                        value={formData.firstName}
+                                        onChangeText={(value) => handleInputChange('firstName', value)}
+                                        placeholder="First Name"
+                                        autoCapitalize="words"
+                                        error={formErrors.firstName}
+                                        style={styles.nameInput}
+                                    />
+                                    <FormInput
+                                        value={formData.lastName}
+                                        onChangeText={(value) => handleInputChange('lastName', value)}
+                                        placeholder="Last Name"
+                                        autoCapitalize="words"
+                                        error={formErrors.lastName}
+                                        style={[styles.nameInput, styles.lastNameInput]}
+                                    />
+                                </View>
 
-                                {/* Last Name Input */}
-                                <FormInput
-                                    value={formData.lastName}
-                                    onChangeText={text => handleInputChange('lastName', text)}
-                                    placeholder="Last Name"
-                                    error={formErrors.lastName}
-                                />
-
-                                {/* Username Input */}
                                 <FormInput
                                     value={formData.username}
-                                    onChangeText={text => handleInputChange('username', text)}
+                                    onChangeText={(value) => handleInputChange('username', value.toLowerCase())}
                                     placeholder="Username"
                                     error={formErrors.username}
                                 />
 
-                                {/* Email Input */}
                                 <FormInput
                                     value={formData.email}
-                                    onChangeText={text => handleInputChange('email', text)}
+                                    onChangeText={(value) => handleInputChange('email', value)}
                                     placeholder="Email"
-                                    error={formErrors.email}
                                     keyboardType="email-address"
+                                    error={formErrors.email}
                                 />
 
-                                {/* Phone Number Input */}
-                                <FormInput
-                                    value={formData.phoneNumber}
-                                    onChangeText={text => handleInputChange('phoneNumber', text)}
-                                    placeholder="Phone Number"
-                                    error={formErrors.phoneNumber}
-                                    keyboardType="phone-pad"
-                                />
-
-                                {/* Password Input */}
                                 <FormInput
                                     value={formData.password}
-                                    onChangeText={text => handleInputChange('password', text)}
+                                    onChangeText={(value) => handleInputChange('password', value)}
                                     placeholder="Password"
                                     secureTextEntry={!showPassword}
                                     error={formErrors.password}
                                     showPasswordToggle
-                                    onTogglePassword={() => setShowPassword(prev => !prev)}
+                                    onTogglePassword={() => setShowPassword(!showPassword)}
                                 />
 
-                                {/* Sign Up Button */}
+                                <FormInput
+                                    value={formData.phoneNumber}
+                                    onChangeText={(value) => handleInputChange('phoneNumber', value)}
+                                    placeholder="Phone Number"
+                                    keyboardType="phone-pad"
+                                    error={formErrors.phoneNumber}
+                                />
+
                                 <TouchableOpacity
-                                    style={styles.button}
+                                    style={[
+                                        styles.button,
+                                        styles.signupButton,
+                                        isLoading && styles.buttonDisabled
+                                    ]}
                                     onPress={handleSignup}
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (
-                                        <ActivityIndicator size="small" color="#fff" /> // Show loading spinner while signing up
+                                        <ActivityIndicator color="white" />
                                     ) : (
                                         <Text style={styles.buttonText}>Sign Up</Text>
                                     )}
                                 </TouchableOpacity>
+
+                                <View style={styles.loginContainer}>
+                                    <Text style={styles.loginText}>Already have an account? </Text>
+                                    <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                                        <Text style={styles.loginLink}>Log In</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         </View>
                     </ScrollView>

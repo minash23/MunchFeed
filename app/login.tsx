@@ -288,8 +288,8 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: windowWidth * 0.8,
-    height: windowHeight * 0.2,
+    width: windowWidth * 0.9,
+    height: windowHeight * 0.3,
   },
   formContainer: {
     width: '80%',
