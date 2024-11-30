@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   },
   logo: {
     width: windowWidth * 0.9,
-    height: windowHeight * 0.3,
+    height: windowHeight * 0.5,
   },
   formContainer: {
     width: '80%',
