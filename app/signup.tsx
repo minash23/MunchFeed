@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';  // Import necessary React hooks
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -13,36 +13,37 @@ import {
     TouchableWithoutFeedback,
     Keyboard,
     ScrollView
-} from 'react-native';  // Importing components from React Native
-import { SafeAreaView } from 'react-native-safe-area-context';  // SafeAreaView for iOS screen padding
-import { createUserWithEmailAndPassword } from 'firebase/auth';  // Import Firebase functions
-import { getDatabase, ref, set, get } from 'firebase/database';  // Import Firebase Realtime Database functions
-import { auth } from '../config/firebaseConfig';  // Import auth configuration
-import { useNavigation } from '@react-navigation/native';  // Navigation hook from React Navigation
-import debounce from 'lodash/debounce';  // Import lodash's debounce function for username check
-import splash from '../assets/images/splash.png';  // Splash image import for branding
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { getDatabase, ref, set, get } from 'firebase/database';
+import { auth } from '../config/firebaseConfig';
+import { useNavigation } from '@react-navigation/native';
+import debounce from 'lodash/debounce';
+// @ts-ignore
+import splash from '../assets/images/splash.png';
 
-// Constants for form validation rules
+// Form validation constants for different fields
 const VALIDATION_RULES = {
     USERNAME: {
-        pattern: /^[a-zA-Z0-9_]{3,20}$/,  // Username must be 3-20 characters long with alphanumeric characters and underscores
+        pattern: /^[a-zA-Z0-9_]{3,20}$/, // Username must be 3-20 characters, letters, numbers, or underscores
         message: 'Username must be 3-20 characters and contain only letters, numbers, and underscores'
     },
     EMAIL: {
-        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,  // Simple email validation pattern
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // Valid email regex
         message: 'Please enter a valid email address'
     },
     PASSWORD: {
-        pattern: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/,  // Password should include letters, numbers, and special characters with at least 8 characters
+        pattern: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, // Password must contain letters, numbers, and special chars
         message: 'Password must be at least 8 characters and include letters, numbers, and special characters'
     },
     PHONE: {
-        pattern: /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/,  // Basic phone number validation
+        pattern: /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/, // Valid phone number regex
         message: 'Please enter a valid phone number'
     }
 };
 
-// Custom input component for reusable form fields
+// Custom reusable input component
 const FormInput = ({
                        value,
                        onChangeText,
@@ -59,34 +60,35 @@ const FormInput = ({
         <TextInput
             style={[
                 styles.input,
-                error && styles.inputError,  // Apply error styling if there's an error
+                error && styles.inputError,
                 style
             ]}
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
-            placeholderTextColor="#A9A9A9AC"  // Light grey placeholder color
-            secureTextEntry={secureTextEntry}  // Option to hide/show password
-            keyboardType={keyboardType}  // Customize keyboard type based on the field (e.g., email, phone)
-            autoCapitalize={autoCapitalize}  // Prevent auto-capitalization for fields like email
-            autoCorrect={false}  // Disable autocorrect
+            placeholderTextColor="#A9A9A9AC"
+            secureTextEntry={secureTextEntry}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+            autoCorrect={false}
         />
         {showPasswordToggle && (
             <TouchableOpacity
                 style={styles.showPasswordButton}
-                onPress={onTogglePassword}  // Toggle password visibility
+                onPress={onTogglePassword}
             >
                 <Text style={styles.showPasswordText}>
-                    {secureTextEntry ? 'Show' : 'Hide'}  // Toggle text based on password visibility
+                    {secureTextEntry ? 'Show' : 'Hide'} // Toggles password visibility
                 </Text>
             </TouchableOpacity>
         )}
-        {error && <Text style={styles.errorText}>{error}</Text>}  // Show error message if validation fails
+        {error && <Text style={styles.errorText}>{error}</Text>} // Shows error message if validation fails
     </View>
 );
 
 export default function SignupPage() {
-    const [formData, setFormData] = useState({  // State to manage form input data
+    // State to store form data
+    const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
         username: '',
@@ -94,99 +96,109 @@ export default function SignupPage() {
         password: '',
         phoneNumber: ''
     });
-    const [formErrors, setFormErrors] = useState({});  // State to manage form validation errors
-    const [showPassword, setShowPassword] = useState(false);  // Toggle password visibility state
-    const [isLoading, setIsLoading] = useState(false);  // State to manage loading state
-    const navigation = useNavigation();  // Navigation hook for navigating between screens
 
-    // Debounced function to check username availability
+    // State to store form field errors
+    const [formErrors, setFormErrors] = useState({});
+    // State for password visibility toggle
+    const [showPassword, setShowPassword] = useState(false);
+    // State to manage loading state while signing up
+    const [isLoading, setIsLoading] = useState(false);
+    // Navigation hook for navigating between screens
+    const navigation = useNavigation();
+
+    // Debounced function to check username availability in the database
     const checkUsernameAvailability = useCallback(
         debounce(async (username) => {
             if (username && VALIDATION_RULES.USERNAME.pattern.test(username)) {
                 const db = getDatabase();
                 const usernameRef = ref(db, `usernames/${username.toLowerCase()}`);
-                const snapshot = await get(usernameRef);  // Check if the username exists in the database
+                const snapshot = await get(usernameRef);
                 if (snapshot.exists()) {
                     setFormErrors(prev => ({
                         ...prev,
-                        username: 'Username is already taken'  // Show error if username is taken
+                        username: 'Username is already taken' // Shows error if username is taken
                     }));
                 }
             }
-        }, 500),  // Delay the function call by 500ms to avoid too many requests
+        }, 500), // Debounce delay of 500ms
         []
     );
 
-    // Validate individual fields based on validation rules
+    // Field validation function based on rules
     const validateField = (name, value) => {
         let error = '';
 
         if (!value.trim()) {
-            error = 'This field is required';  // Check if the field is empty
+            error = 'This field is required'; // Checks if field is empty
         } else {
             switch (name) {
                 case 'username':
                     if (!VALIDATION_RULES.USERNAME.pattern.test(value)) {
-                        error = VALIDATION_RULES.USERNAME.message;  // Check if username matches the regex pattern
+                        error = VALIDATION_RULES.USERNAME.message; // Validates username
                     }
                     break;
                 case 'email':
                     if (!VALIDATION_RULES.EMAIL.pattern.test(value)) {
-                        error = VALIDATION_RULES.EMAIL.message;  // Check if email matches the regex pattern
+                        error = VALIDATION_RULES.EMAIL.message; // Validates email
                     }
                     break;
                 case 'password':
                     if (!VALIDATION_RULES.PASSWORD.pattern.test(value)) {
-                        error = VALIDATION_RULES.PASSWORD.message;  // Check if password matches the regex pattern
+                        error = VALIDATION_RULES.PASSWORD.message; // Validates password
                     }
                     break;
                 case 'phoneNumber':
                     if (!VALIDATION_RULES.PHONE.pattern.test(value)) {
-                        error = VALIDATION_RULES.PHONE.message;  // Check if phone number matches the regex pattern
+                        error = VALIDATION_RULES.PHONE.message; // Validates phone number
                     }
                     break;
             }
         }
 
-        return error;  // Return error message if validation fails
+        return error;
     };
 
-    // Handle input field changes
+    // Handles input change and validates the specific field
     const handleInputChange = (name, value) => {
-        setFormData(prev => ({ ...prev, [name]: value }));  // Update form data
-        setFormErrors(prev => ({ ...prev, [name]: '' }));  // Clear previous error on input change
-        const error = validateField(name, value);  // Validate the field
+        setFormData(prev => ({ ...prev, [name]: value }));
+
+        // Clears previous error when user starts typing
+        setFormErrors(prev => ({ ...prev, [name]: '' }));
+
+        // Validate field on change
+        const error = validateField(name, value);
         if (error) {
-            setFormErrors(prev => ({ ...prev, [name]: error }));  // Set the error if validation fails
+            setFormErrors(prev => ({ ...prev, [name]: error }));
         }
+
+        // Check username availability only when username is being updated
         if (name === 'username') {
-            checkUsernameAvailability(value);  // Check username availability if the username field is changed
+            checkUsernameAvailability(value);
         }
     };
 
-    // Validate the entire form before submitting
+    // Validates all form fields
     const validateForm = () => {
         const errors = {};
         Object.keys(formData).forEach(key => {
             const error = validateField(key, formData[key]);
             if (error) {
-                errors[key] = error;  // Add error for invalid fields
+                errors[key] = error;
             }
         });
-        setFormErrors(errors);  // Set the form errors
-        return Object.keys(errors).length === 0;  // Return true if no errors exist
+        setFormErrors(errors); // Update form errors state
+        return Object.keys(errors).length === 0; // Return true if no errors
     };
 
-    // Handle form submission and sign up process
+    // Handles form submission and user signup
     const handleSignup = async () => {
         if (!validateForm()) {
-            Alert.alert('Error', 'Please fix the errors in the form');  // Show alert if the form is invalid
+            Alert.alert('Error', 'Please fix the errors in the form'); // Show alert if form is invalid
             return;
         }
 
-        setIsLoading(true);  // Set loading state to true while submitting the form
+        setIsLoading(true); // Set loading state to true while signing up
         try {
-            // Create a new user with Firebase authentication
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
                 formData.email,
@@ -204,13 +216,13 @@ export default function SignupPage() {
                 createdAt: new Date().toISOString()
             };
 
-            // Save user data and username to the database
+            // Atomic operation to add user data to the database
             await Promise.all([
                 set(ref(db, `users/${user.uid}`), userData),
-                set(ref(db, `usernames/${formData.username.toLowerCase()}`), user.uid)
+                set(ref(db, `usernames/${formData.username.toLowerCase()}`), user.uid) // Reserve username
             ]);
 
-            // Reset form and errors after successful signup
+            // Reset form after successful signup
             setFormData({
                 firstName: '',
                 lastName: '',
@@ -221,170 +233,244 @@ export default function SignupPage() {
             });
             setFormErrors({});
 
-            navigation.navigate('Profile');  // Navigate to the Profile page after successful signup
+            navigation.navigate('Profile'); // Navigate to the Profile screen after successful signup
         } catch (error) {
+            // Show specific error messages based on Firebase error codes
             const errorMessages = {
                 'auth/email-already-in-use': 'This email is already registered',
                 'auth/invalid-email': 'Invalid email address',
                 'auth/weak-password': 'Password is too weak',
-                'auth/network-request-failed': 'Network error. Please try again later',
+                'auth/network-request-failed': 'Network error. Please check your connection'
             };
-            const errorMessage = errorMessages[error.code] || 'Something went wrong. Please try again';
-            Alert.alert('Signup Failed', errorMessage);  // Show error alert if signup fails
+
+            Alert.alert(
+                'Signup Error',
+                errorMessages[error.code] || 'An error occurred during signup' // Default error message
+            );
         } finally {
-            setIsLoading(false);  // Set loading state to false after submission
+            setIsLoading(false); // Set loading state to false after the operation is complete
         }
     };
 
-    // Toggle the visibility of the password field
-    const togglePasswordVisibility = () => {
-        setShowPassword(prev => !prev);
-    };
-
     return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}  // Adjust view for keyboard on iOS
-                style={styles.keyboardAvoidingView}
-            >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>  // Dismiss keyboard on touch outside input
-                    <ScrollView contentContainerStyle={styles.scrollView}>
-                        <View style={styles.formContainer}>
-                            <Image source={splash} style={styles.logo} />  // Display logo image
+        <KeyboardAvoidingView
+            style={styles.keyboardView}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? -64 : 0}
+        >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <SafeAreaView style={styles.container}>
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.scrollContent}
+                    >
+                        <View style={styles.contentWrapper}>
+                            <View style={styles.imageContainer}>
+                                <Image
+                                    source={splash}
+                                    style={styles.logo}
+                                    resizeMode="contain"
+                                />
+                            </View>
 
-                            {/* First Name Input */}
-                            <FormInput
-                                value={formData.firstName}
-                                onChangeText={(value) => handleInputChange('firstName', value)}
-                                placeholder="First Name"
-                                error={formErrors.firstName}
-                            />
+                            <View style={styles.formContainer}>
+                                <Text style={styles.title}>Create Account</Text>
 
-                            {/* Last Name Input */}
-                            <FormInput
-                                value={formData.lastName}
-                                onChangeText={(value) => handleInputChange('lastName', value)}
-                                placeholder="Last Name"
-                                error={formErrors.lastName}
-                            />
+                                {/* First Name Input */}
+                                <FormInput
+                                    value={formData.firstName}
+                                    onChangeText={text => handleInputChange('firstName', text)}
+                                    placeholder="First Name"
+                                    error={formErrors.firstName}
+                                />
 
-                            {/* Username Input */}
-                            <FormInput
-                                value={formData.username}
-                                onChangeText={(value) => handleInputChange('username', value)}
-                                placeholder="Username"
-                                error={formErrors.username}
-                            />
+                                {/* Last Name Input */}
+                                <FormInput
+                                    value={formData.lastName}
+                                    onChangeText={text => handleInputChange('lastName', text)}
+                                    placeholder="Last Name"
+                                    error={formErrors.lastName}
+                                />
 
-                            {/* Email Input */}
-                            <FormInput
-                                value={formData.email}
-                                onChangeText={(value) => handleInputChange('email', value)}
-                                placeholder="Email"
-                                keyboardType="email-address"
-                                error={formErrors.email}
-                            />
+                                {/* Username Input */}
+                                <FormInput
+                                    value={formData.username}
+                                    onChangeText={text => handleInputChange('username', text)}
+                                    placeholder="Username"
+                                    error={formErrors.username}
+                                />
 
-                            {/* Password Input */}
-                            <FormInput
-                                value={formData.password}
-                                onChangeText={(value) => handleInputChange('password', value)}
-                                placeholder="Password"
-                                secureTextEntry={!showPassword}
-                                error={formErrors.password}
-                                showPasswordToggle={true}
-                                onTogglePassword={togglePasswordVisibility}
-                            />
+                                {/* Email Input */}
+                                <FormInput
+                                    value={formData.email}
+                                    onChangeText={text => handleInputChange('email', text)}
+                                    placeholder="Email"
+                                    error={formErrors.email}
+                                    keyboardType="email-address"
+                                />
 
-                            {/* Phone Number Input */}
-                            <FormInput
-                                value={formData.phoneNumber}
-                                onChangeText={(value) => handleInputChange('phoneNumber', value)}
-                                placeholder="Phone Number"
-                                keyboardType="phone-pad"
-                                error={formErrors.phoneNumber}
-                            />
+                                {/* Phone Number Input */}
+                                <FormInput
+                                    value={formData.phoneNumber}
+                                    onChangeText={text => handleInputChange('phoneNumber', text)}
+                                    placeholder="Phone Number"
+                                    error={formErrors.phoneNumber}
+                                    keyboardType="phone-pad"
+                                />
 
-                            {/* Submit Button */}
-                            <TouchableOpacity
-                                style={styles.button}
-                                onPress={handleSignup}
-                                disabled={isLoading}  // Disable button while loading
-                            >
-                                {isLoading ? (  // Show loader during the submission
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.buttonText}>Sign Up</Text>
-                                )}
-                            </TouchableOpacity>
+                                {/* Password Input */}
+                                <FormInput
+                                    value={formData.password}
+                                    onChangeText={text => handleInputChange('password', text)}
+                                    placeholder="Password"
+                                    secureTextEntry={!showPassword}
+                                    error={formErrors.password}
+                                    showPasswordToggle
+                                    onTogglePassword={() => setShowPassword(prev => !prev)}
+                                />
+
+                                {/* Sign Up Button */}
+                                <TouchableOpacity
+                                    style={styles.button}
+                                    onPress={handleSignup}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <ActivityIndicator size="small" color="#fff" /> // Show loading spinner while signing up
+                                    ) : (
+                                        <Text style={styles.buttonText}>Sign Up</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </ScrollView>
-                </TouchableWithoutFeedback>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                </SafeAreaView>
+            </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
     );
 }
 
-// Styles for the components
 const styles = StyleSheet.create({
+    keyboardView: {
+        flex: 1,
+    },
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: 'white',
     },
-    keyboardAvoidingView: {
-        flex: 1,
-    },
-    scrollView: {
+    scrollContent: {
         flexGrow: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
     },
-    formContainer: {
-        width: '100%',
+    contentWrapper: {
+        flex: 1,
+        paddingBottom: 20,
+    },
+    imageContainer: {
         alignItems: 'center',
+        position: 'relative',
+        bottom: 75,
+        marginBottom: -100,
     },
     logo: {
-        width: 120,
-        height: 120,
-        marginBottom: 40,
+        width: 400,
+        height: 400,
     },
-    inputContainer: {
+    formContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+    },
+    title: {
+        fontFamily: 'Trebuchet MS',
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#333',
+        marginBottom: 8,
+    },
+    subtitle: {
+        fontFamily: 'Trebuchet MS',
+        fontSize: 16,
+        color: '#666',
+        marginBottom: 30,
+    },
+    nameRow: {
+        flexDirection: 'row',
         marginBottom: 15,
         width: '100%',
     },
+    nameInput: {
+        flex: 1,
+    },
+    lastNameInput: {
+        marginLeft: 10,
+    },
+    inputContainer: {
+        marginBottom: 15,
+        position: 'relative',
+    },
     input: {
-        width: '100%',
-        padding: 10,
+        height: 45,
+        borderColor: '#e1e1e1',
         borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 5,
+        borderRadius: 8,
+        paddingHorizontal: 15,
+        fontSize: 16,
+        fontFamily: 'Trebuchet MS',
+        backgroundColor: '#f8f8f8',
+        width: '100%',
     },
     inputError: {
-        borderColor: '#ff0000',  // Red border color if there's an error
+        borderColor: '#ff6b6b',
     },
     errorText: {
-        color: '#ff0000',
+        color: '#ff6b6b',
         fontSize: 12,
-        marginTop: 5,
+        marginTop: 4,
+        fontFamily: 'Trebuchet MS',
     },
     showPasswordButton: {
         position: 'absolute',
-        right: 10,
-        top: 10,
+        right: 15,
+        top: 12,
     },
     showPasswordText: {
-        color: '#007BFF',
+        color: '#007AFF',
+        fontSize: 14,
+        fontFamily: 'Trebuchet MS',
     },
     button: {
-        backgroundColor: '#007BFF',
-        padding: 15,
-        borderRadius: 5,
-        width: '100%',
+        height: 45,
+        borderRadius: 8,
+        justifyContent: 'center',
         alignItems: 'center',
+        marginBottom: 15,
+    },
+    signupButton: {
+        backgroundColor: '#007AFF',
+    },
+    buttonDisabled: {
+        opacity: 0.7,
     },
     buttonText: {
-        color: '#fff',
-        fontSize: 18,
+        color: 'white',
+        fontSize: 16,
+        fontFamily: 'Trebuchet MS',
+        fontWeight: '600',
+    },
+    loginContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginTop: 15,
+    },
+    loginText: {
+        color: '#666',
+        fontSize: 14,
+        fontFamily: 'Trebuchet MS',
+    },
+    loginLink: {
+        color: '#007AFF',
+        fontSize: 14,
+        fontWeight: '600',
+        fontFamily: 'Trebuchet MS',
     },
 });
