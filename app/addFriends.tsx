@@ -17,6 +17,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { auth, database } from '../config/firebaseConfig';
 import { ref, get, set } from 'firebase/database';
+// @ts-ignore
 import defaultPFP from '../assets/images/defaultPFP.png';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -140,13 +141,17 @@ const AddFriends = () => {
             setFilteredFriends(filtered); // Filter friends by username
         }
     };
+    const navigateToProfile = (userId: string) => {
+        // @ts-ignore
+        navigation.navigate('ViewProfile', { userId });
+    };
 
     // Function to render each user in the list
     const renderUserItem = ({ item }: { item: User }) => (
         <View style={styles.userContainer}>
             <TouchableOpacity
                 style={styles.userInfoContainer}
-                onPress={() => navigation.navigate('Profile', { userId: item.id })} // Navigate to profile on click
+                onPress={() => navigateToProfile(item.id)}
             >
                 <Image
                     source={item.profileImage ? { uri: item.profileImage } : defaultPFP} // Display profile image or default
@@ -173,6 +178,21 @@ const AddFriends = () => {
             )}
         </View>
     );
+    const renderEmptyState = () => (
+        <View style={styles.emptyStateContainer}>
+            <Ionicons name="people-outline" size={50} color="gray" />
+            <Text style={styles.emptyStateText}>
+                No friend suggestions available at the moment
+            </Text>
+            <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+                <Text style={styles.refreshButtonText}>Refresh</Text>
+            </TouchableOpacity>
+        </View>
+    );
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchSuggestedFriends();
+    };
 
     // Function to handle sending a friend request
     const handleSendFriendRequest = async (friendUserId: string) => {
@@ -203,33 +223,75 @@ const AddFriends = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Text style={styles.headerText}>Add Friends</Text>
-            <TextInput
-                style={styles.searchBar}
-                placeholder="Search by username..."
-                value={searchQuery}
-                onChangeText={handleSearch} // Handle search input changes
-            />
-            {isLoading ? (
-                <ActivityIndicator style={styles.loader} size="large" color="black" />
-            ) : (
-                <FlatList
-                    data={filteredFriends}
-                    keyExtractor={(item) => item.id} // Set unique key for each item
-                    renderItem={renderUserItem} // Render each user item
-                    contentContainerStyle={styles.listContainer}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={fetchSuggestedFriends} /> // Pull-to-refresh
-                    }
+            <View style={styles.mainContent}>
+                <Text style={styles.headerText}>CONNECT</Text>
+                <TextInput
+                    style={styles.searchBar}
+                    placeholder="Search by username..."
+                    placeholderTextColor={'#A9A9A9AC'}
+                    value={searchQuery}
+                    onChangeText={handleSearch}
                 />
-            )}
+                <Text style={styles.subheaderText}>Suggested Friends</Text>
+                {isLoading ? (
+                    <ActivityIndicator style={styles.loader} size="large" color="black" />
+                ) : (
+                    <FlatList
+                        data={filteredFriends}
+                        keyExtractor={(item) => item.id}
+                        renderItem={renderUserItem}
+                        ListEmptyComponent={renderEmptyState}
+                        contentContainerStyle={[
+                            styles.listContainer,
+                            { paddingBottom: 80 } // Add padding to account for the fixed button
+                        ]}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={fetchSuggestedFriends}
+                                tintColor={'black'}
+                            />
+                        }
+                    />
+                )}
+            </View>
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                    style={styles.pendingRequestsButton}
+                    onPress={() => navigation.navigate('PendingRequests')}
+                >
+                    <Text style={styles.pendingRequestsText}>
+                        View Pending Requests
+                    </Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: 'white', paddingHorizontal: 15 },
-    headerText: { fontSize: 32, fontWeight: 'bold', marginTop: 10, marginBottom: 20 },
+    container: {
+        flex: 1,
+        backgroundColor: 'white',
+    },
+    mainContent: {
+        flex: 1,
+        paddingHorizontal: 15,
+    },
+    headerText: {
+        fontSize: 32,
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+        fontWeight: 'bold',
+        marginTop: 10,
+        marginBottom: 20,
+    },
+    subheaderText: {
+        fontSize: 20,
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+        color: '#666',
+        marginBottom: 15,
+        paddingHorizontal: 15,
+    },
     searchBar: {
         height: 40,
         borderWidth: 1,
@@ -238,7 +300,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         marginBottom: 15,
     },
-    listContainer: { flexGrow: 1 },
+    listContainer: {
+        flexGrow: 1
+    },
     userContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -267,6 +331,55 @@ const styles = StyleSheet.create({
     },
     requestSentText: { color: 'white', fontSize: 16 },
     loader: { marginTop: 20 },
+    pendingRequestsButton: {
+        margin: 15,
+        backgroundColor: 'black',
+        borderRadius: 25,
+        padding: 15,
+        alignItems: 'center',
+    },
+    pendingRequestsText: {
+        color: 'white',
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    emptyStateContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
+    emptyStateText: {
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+        fontSize: 16,
+        color: 'gray',
+        textAlign: 'center',
+        marginTop: 10,
+        marginBottom: 20,
+    },
+    refreshButton: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        backgroundColor: 'black',
+        borderRadius: 20,
+    },
+    refreshButtonText: {
+        color: 'white',
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    buttonContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'white',
+        paddingHorizontal: 15,
+        paddingBottom: 15,
+        elevation: 5,
+    },
 });
 
 export default AddFriends;

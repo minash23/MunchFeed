@@ -19,6 +19,7 @@ import { auth } from '../config/firebaseConfig';
 import { getDatabase, ref, set, get, remove, onValue } from "firebase/database";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useNavigation } from '@react-navigation/native';
+// @ts-ignore
 import Icon from 'react-native-vector-icons/FontAwesome';
 // @ts-ignore
 import defaultPFP from '../assets/images/defaultPFP.png';
