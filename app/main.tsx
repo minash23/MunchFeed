@@ -23,7 +23,6 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 // @ts-ignore
 import defaultPFP from '../assets/images/defaultPFP.png';
-import {timestamp} from "yaml/dist/schema/yaml-1.1/timestamp";  // Import the default profile picture
 
 // Define types for TypeScript
 type Post = {
@@ -95,7 +94,6 @@ export default function MainPage() {
 
     useEffect(() => {
         let isMounted = true;
-        let midnightTimeout: NodeJS.Timeout;
 
         const fetchUserData = async () => {
             try {
@@ -130,9 +128,10 @@ export default function MainPage() {
                 if (postSnapshot.exists() && isMounted) {
                     const post = postSnapshot.val();
 
-                    // Check if post should be deleted
+                    // Only check if post should be deleted (actual deletion handled by Cloud Function)
                     if (shouldDeletePost(post.timestamp)) {
-                        await deleteExpiredPosts(user.uid, post);
+                        setCurrentPost(null);
+                        setCanPost(true);
                     } else {
                         setCurrentPost(post);
                         setCanPost(false);
@@ -154,8 +153,11 @@ export default function MainPage() {
 
                         if (friendPostSnapshot.exists()) {
                             const friendPost = friendPostSnapshot.val();
-                            friendPost.friendId = friendId;
-                            friendPosts.push(friendPost);
+                            // Only add post if it's not expired
+                            if (!shouldDeletePost(friendPost.timestamp)) {
+                                friendPost.friendId = friendId;
+                                friendPosts.push(friendPost);
+                            }
                         }
                     }
 
@@ -173,34 +175,11 @@ export default function MainPage() {
             }
         };
 
-        // Set up midnight deletion timer
-        const setupMidnightDeletion = () => {
-            const now = new Date();
-            const midnight = new Date(now);
-            midnight.setHours(24, 0, 0, 0);
-            const timeUntilMidnight = midnight.getTime() - now.getTime();
-
-            midnightTimeout = setTimeout(async () => {
-                if (currentPost) {
-                    const user = auth.currentUser;
-                    if (user) {
-                        await deleteExpiredPosts(user.uid, currentPost);
-                    }
-                }
-                // Recursively set up next day's deletion
-                setupMidnightDeletion();
-            }, timeUntilMidnight);
-        };
-
         fetchUserData();
-        setupMidnightDeletion();
 
         // Cleanup function
         return () => {
             isMounted = false;
-            if (midnightTimeout) {
-                clearTimeout(midnightTimeout);
-            }
         };
     }, []);
 
