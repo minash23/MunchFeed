@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     SafeAreaView,
     ScrollView,
@@ -11,57 +11,48 @@ import {
     TouchableWithoutFeedback,
     Keyboard,
     Image,
-    Dimensions,
     TouchableOpacity,
     ActivityIndicator,
     Alert,
-    RefreshControl
+    RefreshControl,
+    Dimensions
 } from 'react-native';
 import { auth, database } from '../config/firebaseConfig';
 import { ref, set, push, onValue, get, remove, update } from 'firebase/database';
 import { useRoute } from '@react-navigation/core';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
-import {StackNavigationProp} from "@react-navigation/stack";
-import {useNavigation} from "@react-navigation/native";
-
-interface User {
-    userId: string;
-    text: string;
-    profileImage?: string;
-}
+import { useNavigation } from "@react-navigation/native";
 
 interface Comment {
     userId: string;
     userName: string;
     userProfileImage?: string;
     text: string;
-    timestamp?: number;
+    timestamp: number;
     id?: string;
-    likes?: number;
+    likes: number;
     likedBy?: { [key: string]: boolean };
+}
+
+interface PostDetails {
+    caption: string;
+    imageUrl?: string;
+    timestamp: number;
+    userId: string;
+    userName: string;
+    profileImage?: string;
 }
 
 type NavigationProps = {
     navigate: (screen: string, params?: any) => void;
 };
-interface PostDetails {
-    caption: string;
-    imageUrl?: string;
-    timestamp: number;
-    userId?: string;
-}
 
 const COMMENTS_PER_PAGE = 20;
-
-
 
 function CommentsPage() {
     const [commentText, setCommentText] = useState('');
     const [comments, setComments] = useState<Comment[]>([]);
-    const [postOwnerName, setPostOwnerName] = useState('');
-    const [postOwnerProfile, setPostOwnerProfile] = useState('');
-    const [caption, setCaption] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -69,34 +60,32 @@ function CommentsPage() {
     const [page, setPage] = useState(1);
     const [hasMoreComments, setHasMoreComments] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
-    const navigation = useNavigation<NavigationProps>();
 
+    const navigation = useNavigation<NavigationProps>();
     const route = useRoute();
     const { postId } = route.params as { postId: string };
     const currentUserId = auth.currentUser?.uid;
 
     const fetchPostDetails = async () => {
         try {
-            const userRef = ref(database, `users/${postId}`);
-            const userSnapshot = await get(userRef);
+            const postRef = ref(database, `posts/${postId}`);
+            const postSnapshot = await get(postRef);
 
-            if (userSnapshot.exists()) {
-                const userData = userSnapshot.val();
-                setPostOwnerName(userData.username);
-                setPostOwnerProfile(userData.profileImage);
+            if (postSnapshot.exists()) {
+                const postData = postSnapshot.val();
+                const userRef = ref(database, `users/${postData.userId}`);
+                const userSnapshot = await get(userRef);
 
-                const postRef = ref(database, `posts/${postId}`);
-                const postSnapshot = await get(postRef);
-
-                if (postSnapshot.exists()) {
-                    const postData = postSnapshot.val();
+                if (userSnapshot.exists()) {
+                    const userData = userSnapshot.val();
                     setPostDetails({
                         caption: postData.caption,
                         imageUrl: postData.imageUrl,
-                        timestamp: postData.timestamp || Date.now(),
-                        userId: postData.userId
+                        timestamp: postData.timestamp,
+                        userId: postData.userId,
+                        userName: userData.username,
+                        profileImage: userData.profileImage
                     });
-                    setCaption(postData.caption);
                 }
             }
         } catch (error) {
@@ -105,13 +94,9 @@ function CommentsPage() {
         }
     };
 
-    const navigateToProfile = (userId: string) => {
-        navigation.navigate('ViewProfile', { userId });
-    };
-
     const fetchComments = async (shouldRefresh = false) => {
         try {
-            const commentsRef = ref(database, `comments/${postId}`);
+            const commentsRef = ref(database, `posts/${postId}/comments`);
             onValue(commentsRef, async (snapshot) => {
                 if (snapshot.exists()) {
                     const commentsData: Comment[] = [];
@@ -120,34 +105,36 @@ function CommentsPage() {
                     const startIndex = shouldRefresh ? 0 : (page - 1) * COMMENTS_PER_PAGE;
                     const endIndex = startIndex + COMMENTS_PER_PAGE;
 
-                    const commentEntries = Object.entries(commentSnapshots)
+                    const commentPromises = Object.entries(commentSnapshots)
                         .sort(([, a]: any, [, b]: any) => b.timestamp - a.timestamp)
-                        .slice(startIndex, endIndex);
+                        .slice(startIndex, endIndex)
+                        .map(async ([key, comment]: [string, any]) => {
+                            try {
+                                const userRef = ref(database, `users/${comment.userId}`);
+                                const userSnapshot = await get(userRef);
 
-                    for (const [key, comment] of commentEntries) {
-                        try {
-                            const userRef = ref(database, `users/${comment.userId}`);
-                            const userSnapshot = await get(userRef);
-
-                            if (userSnapshot.exists()) {
-                                const userData = userSnapshot.val();
-                                commentsData.push({
-                                    ...comment,
-                                    id: key,
-                                    userName: userData.username,
-                                    userProfileImage: userData.profileImage,
-                                    timestamp: comment.timestamp || Date.now(),
-                                    likes: comment.likes || 0,
-                                    likedBy: comment.likedBy || {}
-                                });
+                                if (userSnapshot.exists()) {
+                                    const userData = userSnapshot.val();
+                                    return {
+                                        ...comment,
+                                        id: key,
+                                        userName: userData.username,
+                                        userProfileImage: userData.profileImage,
+                                        likes: comment.likes || 0,
+                                        likedBy: comment.likedBy || {}
+                                    };
+                                }
+                            } catch (error) {
+                                console.error('Error fetching user data for comment:', error);
+                                return null;
                             }
-                        } catch (error) {
-                            console.error('Error fetching user data for comment:', error);
-                        }
-                    }
+                        });
+
+                    const resolvedComments = await Promise.all(commentPromises);
+                    const validComments = resolvedComments.filter(comment => comment !== null) as Comment[];
 
                     setHasMoreComments(Object.keys(commentSnapshots).length > endIndex);
-                    setComments(shouldRefresh ? commentsData : [...comments, ...commentsData]);
+                    setComments(shouldRefresh ? validComments : [...comments, ...validComments]);
                 } else {
                     setComments([]);
                     setHasMoreComments(false);
@@ -161,14 +148,6 @@ function CommentsPage() {
             setIsLoading(false);
             setRefreshing(false);
             setLoadingMore(false);
-            Alert.alert('Error', 'Failed to load comments');
-        }
-    };
-
-    const handleLoadMore = () => {
-        if (!loadingMore && hasMoreComments) {
-            setLoadingMore(true);
-            setPage(prevPage => prevPage + 1);
         }
     };
 
@@ -183,10 +162,16 @@ function CommentsPage() {
         }
     }, [page]);
 
+    const handleLoadMore = () => {
+        if (!loadingMore && hasMoreComments) {
+            setLoadingMore(true);
+            setPage(prevPage => prevPage + 1);
+        }
+    };
+
     const formatTimestamp = (timestamp: number) => {
         const now = Date.now();
         const diff = now - timestamp;
-
         const minutes = Math.floor(diff / 60000);
         const hours = Math.floor(minutes / 60);
         const days = Math.floor(hours / 24);
@@ -201,72 +186,68 @@ function CommentsPage() {
         if (!currentUserId) return;
 
         try {
-            const commentRef = ref(database, `comments/${postId}/${commentId}`);
-const snapshot = await get(commentRef);
+            const commentRef = ref(database, `posts/${postId}/comments/${commentId}`);
+            const snapshot = await get(commentRef);
 
-if (snapshot.exists()) {
-    const comment = snapshot.val();
-    const likedBy = comment.likedBy || {};
-    const hasLiked = likedBy[currentUserId];
+            if (snapshot.exists()) {
+                const comment = snapshot.val();
+                const likedBy = comment.likedBy || {};
+                const hasLiked = likedBy[currentUserId];
 
-    await update(commentRef, {
-        likes: (comment.likes || 0) + (hasLiked ? -1 : 1),
-        [`likedBy/${currentUserId}`]: !hasLiked
-    });
-}
-} catch (error) {
-    console.error('Error liking comment:', error);
-    Alert.alert('Error', 'Failed to like comment');
-}
-};
+                await update(commentRef, {
+                    likes: (comment.likes || 0) + (hasLiked ? -1 : 1),
+                    [`likedBy/${currentUserId}`]: !hasLiked
+                });
+            }
+        } catch (error) {
+            console.error('Error liking comment:', error);
+            Alert.alert('Error', 'Failed to like comment');
+        }
+    };
 
-const deleteComment = async (commentId: string, userId: string) => {
-    // Only allow users to delete their own comments
-    if (currentUserId !== userId) {
-        Alert.alert('Error', 'You can only delete your own comments');
-        return;
-    }
+    const deleteComment = async (commentId: string, userId: string) => {
+        // Check if the current user is either the comment author or the post owner
+        if (currentUserId !== userId && currentUserId !== postDetails?.userId) {
+            Alert.alert('Error', 'You can only delete comments on your post or your own comments');
+            return;
+        }
 
-    Alert.alert(
-        'Delete Comment',
-        'Are you sure you want to delete this comment?',
-        [
-            {
-                text: 'Cancel',
-                style: 'cancel'
-            },
-            {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        await remove(ref(database, `comments/${postId}/${commentId}`));
-                    } catch (error) {
-                        console.error('Error deleting comment:', error);
-                        Alert.alert('Error', 'Failed to delete comment');
+        Alert.alert(
+            'Delete Comment',
+            'Are you sure you want to delete this comment?',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel'
+                },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await remove(ref(database, `posts/${postId}/comments/${commentId}`));
+                        } catch (error) {
+                            console.error('Error deleting comment:', error);
+                            Alert.alert('Error', 'Failed to delete comment');
+                        }
                     }
                 }
-            }
-        ]
-    );
-};
+            ]
+        );
+    };
 
-const postComment = async () => {
-    if (!commentText.trim()) return;
+    const postComment = async () => {
+        if (!commentText.trim()) return;
 
-    const userId = auth.currentUser?.uid;
-    if (!userId) {
-        Alert.alert('Error', 'Please log in to comment');
-        return;
-    }
+        const userId = auth.currentUser?.uid;
+        if (!userId) {
+            Alert.alert('Error', 'Please log in to comment');
+            return;
+        }
 
-    setIsPosting(true);
-    try {
-        const userRef = ref(database, `users/${userId}`);
-        const userSnapshot = await get(userRef);
-
-        if (userSnapshot.exists()) {
-            const newCommentRef = push(ref(database, `comments/${postId}`));
+        setIsPosting(true);
+        try {
+            const newCommentRef = push(ref(database, `posts/${postId}/comments`));
             await set(newCommentRef, {
                 userId,
                 text: commentText.trim(),
@@ -276,148 +257,157 @@ const postComment = async () => {
             });
             setCommentText('');
             Keyboard.dismiss();
+        } catch (error) {
+            console.error('Error posting comment:', error);
+            Alert.alert('Error', 'Failed to post comment');
+        } finally {
+            setIsPosting(false);
         }
-    } catch (error) {
-        console.error('Error posting comment:', error);
-        Alert.alert('Error', 'Failed to post comment');
-    } finally {
-        setIsPosting(false);
-    }
-};
+    };
 
-const onRefresh = () => {
-    setRefreshing(true);
-    setPage(1);
-    fetchPostDetails();
-    fetchComments(true);
-};
-
-const renderRightActions = (commentId: string, userId: string) => {
-    // Only show delete option for user's own comments
-    if (currentUserId !== userId) return null;
+    const onRefresh = () => {
+        setRefreshing(true);
+        setPage(1);
+        fetchPostDetails();
+        fetchComments(true);
+    };
 
     return (
-        <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => deleteComment(commentId, userId)}
-        >
-            <Ionicons name="trash-outline" size={24} color="white" />
-        </TouchableOpacity>
-    );
-};
-
-    const renderCommentItem = (comment: Comment) => (
-        <Swipeable
-            key={comment.id}
-            renderRightActions={() => renderRightActions(comment.id!, comment.userId)}
-            overshootRight={false}
-        >
-            <View style={styles.commentContainer}>
-                <View style={styles.commentLeft}>
-                    <View style={styles.commentHeader}>
-                        <TouchableOpacity
-                            onPress={() => navigateToProfile(comment.userId)}
-                            style={styles.userInfoContainer}
-                        >
-                            <Image
-                                source={comment.userProfileImage ? { uri: comment.userProfileImage } : require('../assets/images/defaultPFP.png')}
-                                style={styles.commentUserImage}
-                            />
-                            <Text style={styles.commentUserName}>{comment.userName}</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <Text style={styles.commentText}>{comment.text}</Text>
-                </View>
-
-                <View style={styles.commentRight}>
-                    <Text style={styles.commentTimestamp}>{formatTimestamp(comment.timestamp!)}</Text>
-                    <TouchableOpacity onPress={() => comment.id && likeComment(comment.id)} style={styles.likeButton}>
-                        <Ionicons
-                            name={comment.likedBy?.[currentUserId || ''] ? 'heart' : 'heart-outline'}
-                            size={20}
-                            color="red"
-                        />
-                        <Text style={styles.likeCount}>{comment.likes}</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Swipeable>
-    );
-
-
-    return (
-    <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.inner}
-            keyboardVerticalOffset={100}
-        >
-            <ScrollView
-                contentContainerStyle={styles.scrollViewContent}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                }
+        <SafeAreaView style={styles.container}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.inner}
+                keyboardVerticalOffset={100}
             >
-                {isLoading ? (
-                    <ActivityIndicator size="large" color="#0000ff" />
-                ) : (
-                    <>
-                        {postDetails && (
-                            <View style={styles.postDetailsContainer}>
-                                <Image
-                                    source={
-                                    { uri: postOwnerProfile ||
-                                            require('../assets/images/defaultPFP.png') }}
-                                    style={styles.postOwnerPFP}
-                                />
-                                <View style={{ flex: 1 }}>
-                                    <Text style ={styles.commentUserName}>{postOwnerName}</Text>
-                                    <Text style={styles.postCaption}>{postDetails.caption}</Text>
+                <ScrollView
+                    contentContainerStyle={styles.scrollViewContent}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    }
+                    onScroll={({ nativeEvent }) => {
+                        const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+                        const isEndReached = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
+                        if (isEndReached) {
+                            handleLoadMore();
+                        }
+                    }}
+                    scrollEventThrottle={400}
+                >
+                    {isLoading ? (
+                        <ActivityIndicator size="large" color="#0000ff" />
+                    ) : (
+                        <>
+                            {postDetails && (
+                                <View style={styles.postDetailsContainer}>
+                                    <Image
+                                        source={
+                                            postDetails.profileImage
+                                                ? { uri: postDetails.profileImage }
+                                                : require('../assets/images/defaultPFP.png')
+                                        }
+                                        style={styles.postOwnerPFP}
+                                    />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.commentUserName}>
+                                            {postDetails.userName}
+                                        </Text>
+                                        <Text style={styles.postCaption}>
+                                            {postDetails.caption}
+                                        </Text>
+                                    </View>
                                 </View>
+                            )}
 
-                            </View>
-                        )}
+                            {comments.map(comment => (
+                                <Swipeable
+                                    key={comment.id}
+                                    renderRightActions={() =>
+                                        (currentUserId === comment.userId || currentUserId === postDetails?.userId) ? (
+                                            <TouchableOpacity
+                                                style={styles.deleteButton}
+                                                onPress={() => comment.id && deleteComment(comment.id, comment.userId)}
+                                            >
+                                                <Ionicons name="trash-outline" size={24} color="white" />
+                                            </TouchableOpacity>
+                                        ) : null
+                                    }
+                                >
+                                    <View style={styles.commentContainer}>
+                                        <View style={styles.commentLeft}>
+                                            <TouchableOpacity
+                                                onPress={() => navigation.navigate('ViewProfile', { userId: comment.userId })}
+                                                style={styles.userInfoContainer}
+                                            >
+                                                <Image
+                                                    source={
+                                                        comment.userProfileImage
+                                                            ? { uri: comment.userProfileImage }
+                                                            : require('../assets/images/defaultPFP.png')
+                                                    }
+                                                    style={styles.commentUserImage}
+                                                />
+                                                <Text style={styles.commentUserName}>{comment.userName}</Text>
+                                            </TouchableOpacity>
+                                            <Text style={styles.commentText}>{comment.text}</Text>
+                                        </View>
 
-                        {comments.length > 0 ? (
-                            comments.map(renderCommentItem)
-                        ) : (
-                            <Text style={[styles.commentText, { textAlign: 'center', marginTop: 20 }]}>
-                                No comments yet
-                            </Text>
-                        )}
+                                        <View style={styles.commentRight}>
+                                            <Text style={styles.commentTimestamp}>
+                                                {formatTimestamp(comment.timestamp)}
+                                            </Text>
+                                            <TouchableOpacity
+                                                onPress={() => comment.id && likeComment(comment.id)}
+                                                style={styles.likeButton}
+                                            >
+                                                <Ionicons
+                                                    name={comment.likedBy?.[currentUserId || ''] ? 'heart' : 'heart-outline'}
+                                                    size={20}
+                                                    color="red"
+                                                />
+                                                <Text style={styles.likeCount}>{comment.likes}</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </Swipeable>
+                            ))}
 
-                        {loadingMore && <ActivityIndicator size="small" color="#0000ff" />}
-                    </>
-                )}
-            </ScrollView>
+                            {loadingMore && <ActivityIndicator size="small" color="#0000ff" />}
+                        </>
+                    )}
+                </ScrollView>
 
-            <View style={styles.commentInputContainer}>
-                <TextInput
-                    style={styles.commentInput}
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    placeholder="Write a comment..."
-                    placeholderTextColor={'#A9A9A9AC'}
-                    multiline
-                    returnKeyType="send"
-                    onSubmitEditing={postComment}
-                />
-                {isPosting ? (
-                    <ActivityIndicator size="small" color="#4CAF50" />
-                ) : (
-                    <TouchableOpacity
-                        style={styles.postButton}
-                        onPress={postComment}
-                        disabled={!commentText.trim()}
-                    >
-                        <Ionicons name="send" size={24} color="white" />
-                    </TouchableOpacity>
-                )}
-            </View>
-    </KeyboardAvoidingView>
-</SafeAreaView>
-);
+                <View style={styles.commentInputContainer}>
+                    <TextInput
+                        style={styles.commentInput}
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        placeholder="Write a comment..."
+                        placeholderTextColor="#A9A9A9AC"
+                        multiline
+                        returnKeyType="send"
+                        onSubmitEditing={postComment}
+                    />
+                    {isPosting ? (
+                        <ActivityIndicator size="small" color="#4CAF50" />
+                    ) : (
+                        <TouchableOpacity
+                            style={[
+                                styles.postButton,
+                                !commentText.trim() && styles.postButtonDisabled
+                            ]}
+                            onPress={postComment}
+                            disabled={!commentText.trim()}
+                        >
+                            <Ionicons name="send" size={24} color="white" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
+    );
 }
+
+export default CommentsPage;
 
 const styles = StyleSheet.create({
     container: {
@@ -547,6 +537,25 @@ const styles = StyleSheet.create({
         backgroundColor: '#007AFF',
         borderRadius: 50,
     },
+    emptyStateContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        marginTop: 50,
+    },
+    emptyStateText: {
+        fontSize: 18,
+        color: '#666',
+        marginTop: 10,
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+        fontWeight: '600',
+    },
+    emptyStateSubText: {
+        fontSize: 14,
+        color: '#999',
+        marginTop: 5,
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+    },
 });
 
-export default CommentsPage;
