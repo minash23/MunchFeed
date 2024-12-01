@@ -21,6 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 
+//basic profile page with nothing just construct until it gets data then filled
 export default function ProfilePage() {
     const [formData, setFormData] = useState({
         profileImage: null,
@@ -45,6 +46,7 @@ export default function ProfilePage() {
         fetchUserData();
     }, []);
 
+    //A little bit of privacy
     const requestImagePermissions = async () => {
         if (Platform.OS !== 'web') {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -54,6 +56,7 @@ export default function ProfilePage() {
         }
     };
 
+    //fetch user data so you can see it
     const fetchUserData = async () => {
         try {
             const user = auth.currentUser;
@@ -75,11 +78,13 @@ export default function ProfilePage() {
         }
     };
 
+    //changes input
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         setErrors(prev => ({ ...prev, [field]: '' }));
     };
 
+    //validators
     const validateForm = () => {
         const newErrors = {};
 
@@ -122,6 +127,7 @@ export default function ProfilePage() {
         return Object.keys(newErrors).length === 0;
     };
 
+    //helps birthday input look better
     const formatBirthday = (text) => {
         const cleaned = text.replace(/\D/g, '');
         let formatted = cleaned;
@@ -136,11 +142,13 @@ export default function ProfilePage() {
         return formatted.slice(0, 10);
     };
 
+    //birthday changer to format it
     const handleBirthdayChange = (text) => {
         const formatted = formatBirthday(text);
         handleInputChange('birthday', formatted);
     };
 
+    //pick image for profile
     const pickImage = async () => {
         try {
             setIsUploadingImage(true);
@@ -170,6 +178,7 @@ export default function ProfilePage() {
         }
     };
 
+    //uploads pic as pfp
     const uploadProfileImage = async (uri) => {
         const user = auth.currentUser;
         if (!user) return null;
@@ -185,11 +194,13 @@ export default function ProfilePage() {
         }
     };
 
+    //navigator
     const navigateToProfile = (userId: string) => {
         // @ts-ignore
         navigation.navigate('ViewProfile', { userId });
     };
 
+    //saves all new info
     const saveUserProfile = async () => {
         if (!validateForm()) {
             Alert.alert('Validation Error', 'Please correct the errors in the form.');

@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
         borderBottomColor: '#c9c9c9',
     },
     profileContainer: {
-        flexDirection: 'row',  // Ensure image and text are in the same row
-        alignItems: 'center',  // Align items vertically in the center
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     usernameText: {
         fontSize: 18,
