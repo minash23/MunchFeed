@@ -381,9 +381,11 @@ const renderRightActions = (commentId: string, userId: string) => {
                         {comments.length > 0 ? (
                             comments.map(renderCommentItem)
                         ) : (
-                            <Text style={[styles.commentText, { textAlign: 'center', marginTop: 20 }]}>
-                                No comments yet
-                            </Text>
+                            <View style={styles.emptyStateContainer}>
+                                <Ionicons name="chatbubble-outline" size={50} color="gray" />
+                                <Text style={styles.emptyStateText}>No comments yet</Text>
+                                <Text style={styles.emptyStateSubText}>Be the first to comment!</Text>
+                            </View>
                         )}
 
                         {loadingMore && <ActivityIndicator size="small" color="#0000ff" />}
@@ -546,6 +548,26 @@ const styles = StyleSheet.create({
         padding: 10,
         backgroundColor: '#007AFF',
         borderRadius: 50,
+    },
+    emptyStateContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        marginTop: 50,
+    },
+    emptyStateText: {
+        fontSize: 18,
+        color: '#666',
+        marginTop: 10,
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
+        fontWeight: '600',
+    },
+    emptyStateSubText: {
+        fontSize: 14,
+        color: '#999',
+        marginTop: 5,
+        fontFamily: Platform.OS === 'ios' ? 'Trebuchet MS' : 'Roboto',
     },
 });
 
