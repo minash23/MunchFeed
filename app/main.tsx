@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     postCard: {
-        width: '100%',
+        width: width,
         alignSelf: 'center',
         backgroundColor: '#fff',
         borderRadius: 16,
@@ -624,5 +624,3 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
 });
-
-export default MainPage;

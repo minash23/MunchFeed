@@ -304,6 +304,7 @@ const CommentsPage: React.FC = () => {
                     }}
                     scrollEventThrottle={400}
                 >
+                    {/*caption*/}
                     {postDetails && (
                         <View style={styles.postDetailsContainer}>
                             <TouchableOpacity
@@ -330,60 +331,68 @@ const CommentsPage: React.FC = () => {
                         </View>
                     )}
 
-                    {comments.map(comment => (
-                        <Swipeable
-                            key={comment.id}
-                            renderRightActions={() =>
-                                (currentUserId === comment.userId || currentUserId === postData.userId) ? (
-                                    <TouchableOpacity
-                                        style={styles.deleteButton}
-                                        onPress={() => comment.id && deleteComment(comment.id, comment.userId)}
-                                    >
-                                        <Ionicons name="trash-outline" size={24} color="white" />
-                                    </TouchableOpacity>
-                                ) : null
-                            }
-                        >
-                            <View style={styles.commentContainer}>
-                                <View style={styles.commentLeft}>
-                                    <TouchableOpacity
-                                        onPress={() => navigateToProfile(comment.userId)}
-                                        style={styles.userInfoContainer}
-                                    >
-                                        <Image
-                                            source={
-                                                comment.userProfileImage
-                                                    ? { uri: comment.userProfileImage }
-                                                    : require('../assets/images/defaultPFP.png')
-                                            }
-                                            style={styles.commentUserImage}
-                                        />
-                                        <Text style={styles.commentUserName}>{comment.userName}</Text>
-                                    </TouchableOpacity>
-                                    <Text style={styles.commentText}>{comment.text}</Text>
-                                </View>
+                    {comments.length === 0 ? (
+                        <View style={styles.emptyStateContainer}>
+                            <Ionicons name="chatbubble-outline" size={50} color="gray" />
+                            <Text style={styles.emptyStateText}>No comments yet</Text>
+                            <Text style={styles.emptyStateSubText}>Be the first to comment!</Text>
+                        </View>
+                    ) : (
+                        <>
+                            {comments.map(comment => (
+                                <Swipeable
+                                    key={comment.id}
+                                    renderRightActions={() =>
+                                        (currentUserId === comment.userId || currentUserId === postData.userId) ? (
+                                            <TouchableOpacity
+                                                style={styles.deleteButton}
+                                                onPress={() => comment.id && deleteComment(comment.id, comment.userId)}
+                                            >
+                                                <Ionicons name="trash-outline" size={24} color="white" />
+                                            </TouchableOpacity>
+                                        ) : null
+                                    }
+                                >
+                                    <View style={styles.commentContainer}>
+                                        <View style={styles.commentLeft}>
+                                            <TouchableOpacity
+                                                onPress={() => navigateToProfile(comment.userId)}
+                                                style={styles.userInfoContainer}
+                                            >
+                                                <Image
+                                                    source={
+                                                        comment.userProfileImage
+                                                            ? { uri: comment.userProfileImage }
+                                                            : require('../assets/images/defaultPFP.png')
+                                                    }
+                                                    style={styles.commentUserImage}
+                                                />
+                                                <Text style={styles.commentUserName}>{comment.userName}</Text>
+                                            </TouchableOpacity>
+                                            <Text style={styles.commentText}>{comment.text}</Text>
+                                        </View>
 
-                                <View style={styles.commentRight}>
-                                    <Text style={styles.commentTimestamp}>
-                                        {formatTimestamp(comment.timestamp)}
-                                    </Text>
-                                    <TouchableOpacity
-                                        onPress={() => comment.id && likeComment(comment.id)}
-                                        style={styles.likeButton}
-                                    >
-                                        <Ionicons
-                                            name={comment.likedBy?.[currentUserId || ''] ? 'heart' : 'heart-outline'}
-                                            size={20}
-                                            color="red"
-                                        />
-                                        <Text style={styles.likeCount}>{comment.likes}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </Swipeable>
-                    ))}
-
-                    {loadingMore && <ActivityIndicator size="small" color="#007AFF" style={styles.loadingMore} />}
+                                        <View style={styles.commentRight}>
+                                            <Text style={styles.commentTimestamp}>
+                                                {formatTimestamp(comment.timestamp)}
+                                            </Text>
+                                            <TouchableOpacity
+                                                onPress={() => comment.id && likeComment(comment.id)}
+                                                style={styles.likeButton}
+                                            >
+                                                <Ionicons
+                                                    name={comment.likedBy?.[currentUserId || ''] ? 'heart' : 'heart-outline'}
+                                                    size={20}
+                                                    color="red"
+                                                />
+                                                <Text style={styles.likeCount}>{comment.likes}</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </Swipeable>
+                            ))}
+                        </>
+                    )}
                 </ScrollView>
 
                 <View style={styles.commentInputContainer}>
@@ -553,6 +562,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 20,
         marginTop: 50,
+    },
+    postButtonDisabled: {
+        backgroundColor: '#D1D5DB',
+        shadowColor: '#9CA3AF',
     },
     emptyStateText: {
         fontSize: 18,
