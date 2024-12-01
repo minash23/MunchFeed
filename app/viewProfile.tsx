@@ -84,6 +84,7 @@ const ViewProfile = () => {
             }
         };
 
+        //fetch comments of profile
         const fetchComments = () => {
             const commentsRef = ref(database, `users/${userId}/comments`);
             onValue(commentsRef, (snapshot) => {

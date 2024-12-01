@@ -54,7 +54,8 @@ type NavigationProps = {
     goBack: () => void;
 };
 
-const COMMENTS_PER_PAGE = 20;
+//how many comments per page
+const COMMENTS_PER_PAGE = 50;
 
 const CommentsPage: React.FC = () => {
     // State management
@@ -85,6 +86,7 @@ const CommentsPage: React.FC = () => {
         };
     }, [postId]);
 
+    //fetches comments from specific post
     const fetchComments = async (shouldRefresh: boolean = false) => {
         try {
             const commentsRef = ref(database, `posts/${postId}/comments`);
@@ -143,6 +145,7 @@ const CommentsPage: React.FC = () => {
         }
     };
 
+//loading of the next page of comments if not already loading and if more comments are available.
     const handleLoadMore = () => {
         if (!loadingMore && hasMoreComments) {
             setLoadingMore(true);
@@ -150,6 +153,7 @@ const CommentsPage: React.FC = () => {
         }
     };
 
+    //function to add time of when comment was posted
     const formatTimestamp = (timestamp: number): string => {
         const now = Date.now();
         const diff = now - timestamp;
@@ -163,6 +167,7 @@ const CommentsPage: React.FC = () => {
         return `${days}d`;
     };
 
+    //function to like comment and add to little heart on right
     const likeComment = async (commentId: string) => {
         if (!currentUserId) return;
 
@@ -186,6 +191,7 @@ const CommentsPage: React.FC = () => {
         }
     };
 
+    //delete comment
     const deleteComment = async (commentId: string, userId: string) => {
         if (currentUserId !== userId && currentUserId !== postData.userId) {
             Alert.alert('Error', 'You can only delete your own comments or comments on your post');
@@ -219,6 +225,7 @@ const CommentsPage: React.FC = () => {
         );
     };
 
+    //post comment
     const postComment = async () => {
         if (!commentText.trim()) return;
 
@@ -265,12 +272,14 @@ const CommentsPage: React.FC = () => {
         }
     };
 
+    //refreshes to view new comments
     const onRefresh = () => {
         setRefreshing(true);
         setPage(1);
         fetchComments(true);
     };
 
+    //navigator
     const navigateToProfile = (userId: string) => {
         navigation.navigate('ViewProfile', { userId });
     };
@@ -460,6 +469,16 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 300,
         resizeMode: 'cover',
+    },
+    postButtonDisabled: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        backgroundColor: '#808080',
+        borderRadius: 50,
+    },
+    loadingMore: {
+        color: '#808080',
     },
     postCaption: {
         flex: 1,
