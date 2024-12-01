@@ -452,6 +452,16 @@ const styles = StyleSheet.create({
         height: 300,
         resizeMode: 'cover',
     },
+    postButtonDisabled: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 10,
+        backgroundColor: '#808080',
+        borderRadius: 50,
+    },
+    loadingMore: {
+        color: '#808080',
+    },
     postCaption: {
         flex: 1,
         fontSize: 16,
