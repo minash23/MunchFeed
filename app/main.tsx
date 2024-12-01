@@ -19,9 +19,7 @@ import { auth } from '../config/firebaseConfig';
 import { getDatabase, ref, set, get, remove, onValue } from "firebase/database";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useNavigation } from '@react-navigation/native';
-// @ts-ignore
 import Icon from 'react-native-vector-icons/FontAwesome';
-// @ts-ignore
 import defaultPFP from '../assets/images/defaultPFP.png';
 
 // Define types for TypeScript
@@ -92,6 +90,20 @@ export default function MainPage() {
         navigation.navigate('ViewProfile', { userId });
     };
 
+    const navigateToComments = (post: Post) => {
+        navigation.navigate('Comments', {
+            postId: post.friendId || uid,
+            postData: {
+                caption: post.caption,
+                imageUrl: post.imageUrl,
+                timestamp: post.timestamp,
+                userId: post.friendId || uid,
+                userName: post.userName,
+                profileImage: post.profileImage
+            }
+        });
+    };
+
     useEffect(() => {
         let isMounted = true;
 
@@ -128,43 +140,41 @@ export default function MainPage() {
                 if (postSnapshot.exists() && isMounted) {
                     const post = postSnapshot.val();
 
-                    // Only check if post should be deleted (actual deletion handled by Cloud Function)
                     if (shouldDeletePost(post.timestamp)) {
-                        setCurrentPost(null);
-                        setCanPost(true);
+                        await deleteExpiredPosts(user.uid, post);
                     } else {
                         setCurrentPost(post);
                         setCanPost(false);
                     }
                 }
 
-                // Fetch friends' posts
+                // Set up real-time listener for friends' posts
                 const friendsRef = ref(database, `users/${user.uid}/friends`);
-                const friendsSnapshot = await get(friendsRef);
+                onValue(friendsRef, async (friendsSnapshot) => {
+                    if (friendsSnapshot.exists() && isMounted) {
+                        const friendIds = Object.keys(friendsSnapshot.val());
+                        const friendPosts: Post[] = [];
 
-                if (friendsSnapshot.exists() && isMounted) {
-                    const friendIds = Object.keys(friendsSnapshot.val());
-                    const friendPosts: Post[] = [];
+                        // Fetch posts for each friend
+                        for (const friendId of friendIds) {
+                            const friendPostRef = ref(database, `posts/${friendId}`);
+                            const friendPostSnapshot = await get(friendPostRef);
 
-                    // Fetch posts for each friend
-                    for (const friendId of friendIds) {
-                        const friendPostRef = ref(database, `posts/${friendId}`);
-                        const friendPostSnapshot = await get(friendPostRef);
-
-                        if (friendPostSnapshot.exists()) {
-                            const friendPost = friendPostSnapshot.val();
-                            // Only add post if it's not expired
-                            if (!shouldDeletePost(friendPost.timestamp)) {
-                                friendPost.friendId = friendId;
-                                friendPosts.push(friendPost);
+                            if (friendPostSnapshot.exists()) {
+                                const friendPost = friendPostSnapshot.val();
+                                if (!shouldDeletePost(friendPost.timestamp)) {
+                                    friendPost.friendId = friendId;
+                                    friendPosts.push(friendPost);
+                                }
                             }
                         }
-                    }
 
-                    if (isMounted) {
-                        setPosts(friendPosts);
+                        if (isMounted) {
+                            setPosts(friendPosts.sort((a, b) => b.timestamp - a.timestamp));
+                        }
                     }
-                }
+                });
+
             } catch (error) {
                 console.error('Error fetching data:', error);
                 Alert.alert('Error', 'Failed to load data');
@@ -177,7 +187,6 @@ export default function MainPage() {
 
         fetchUserData();
 
-        // Cleanup function
         return () => {
             isMounted = false;
         };
@@ -245,47 +254,42 @@ export default function MainPage() {
             }
 
             // Upload image to Firebase Storage
-            try {
-                const response = await fetch(image);
-                const blob = await response.blob();
+            const response = await fetch(image);
+            const blob = await response.blob();
 
-                const storage = getStorage();
-                const timestamp = Date.now();
-                const uniqueImageName = `${timestamp}_${imageName}`;
-                const imageStorageRef = storageRef(storage, `images/${uniqueImageName}`);
+            const storage = getStorage();
+            const timestamp = Date.now();
+            const uniqueImageName = `${timestamp}_${imageName}`;
+            const imageStorageRef = storageRef(storage, `images/${uniqueImageName}`);
 
-                await uploadBytes(imageStorageRef, blob);
-                const downloadURL = await getDownloadURL(imageStorageRef);
+            await uploadBytes(imageStorageRef, blob);
+            const downloadURL = await getDownloadURL(imageStorageRef);
 
-                // Save post data to Realtime Database
-                const database = getDatabase();
-                const postRef = ref(database, `posts/${user.uid}`);
+            // Save post data to Realtime Database
+            const database = getDatabase();
+            const postRef = ref(database, `posts/${user.uid}`);
 
-                const postData: Post = {
-                    imageUrl: downloadURL,
-                    storagePath: `images/${uniqueImageName}`,
-                    caption: caption.trim(),
-                    timestamp,
-                    userName,
-                    profileImage
-                };
+            const postData: Post = {
+                imageUrl: downloadURL,
+                storagePath: `images/${uniqueImageName}`,
+                caption: caption.trim(),
+                timestamp,
+                userName,
+                profileImage
+            };
 
-                await set(postRef, postData);
+            await set(postRef, postData);
 
-                // Update local state
-                setCurrentPost(postData);
-                setCanPost(false);
+            // Update local state
+            setCurrentPost(postData);
+            setCanPost(false);
 
-                // Reset form
-                setImage('');
-                setImageName('');
-                setCaption('');
+            // Reset form
+            setImage('');
+            setImageName('');
+            setCaption('');
 
-                Alert.alert('Success', 'Post created successfully!');
-            } catch (error) {
-                console.error('Upload error:', error);
-                throw error;
-            }
+            Alert.alert('Success', 'Post created successfully!');
         } catch (error) {
             console.error('Post error:', error);
             Alert.alert('Error', 'Failed to create post');
@@ -370,7 +374,7 @@ export default function MainPage() {
                             <Image source={{ uri: currentPost.imageUrl }} style={styles.postImage} resizeMode="cover" />
                             {currentPost.caption ? <Text style={styles.caption}>{currentPost.caption}</Text> : null}
                             <TouchableOpacity
-                                onPress={() => navigation.navigate('Comments', { postId: uid })}
+                                onPress={() => navigateToComments(currentPost)}
                                 style={styles.commentButton}
                             >
                                 <Icon name="comment" size={16} color="#007BFF" />
@@ -384,14 +388,16 @@ export default function MainPage() {
                         <View key={index} style={styles.postCard}>
                             <View style={styles.postHeader}>
                                 <View style={styles.userInfo}>
-                                    <TouchableOpacity onPress={() => navigateToProfile(post.friendId)} style={styles.postHeader}>
+                                    <TouchableOpacity
+                                        onPress={() => navigateToProfile(post.friendId)}
+                                        style={styles.postHeader}
+                                    >
                                         <Image
                                             source={post.profileImage ? { uri: post.profileImage } : defaultPFP}
                                             style={styles.profileImage}
                                         />
                                         <Text style={styles.userName}>{post.userName}</Text>
                                     </TouchableOpacity>
-
                                 </View>
                                 <Text style={styles.timestamp}>
                                     {new Date(post.timestamp).toLocaleDateString()}
@@ -400,7 +406,7 @@ export default function MainPage() {
                             <Image source={{ uri: post.imageUrl }} style={styles.postImage} resizeMode="cover" />
                             {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
                             <TouchableOpacity
-                                onPress={() => navigation.navigate('Comments', { postId: post.userName })}
+                                onPress={() => navigateToComments(post)}
                                 style={styles.commentButton}
                             >
                                 <Icon name="comment" size={16} color="#007BFF" />
@@ -444,7 +450,6 @@ const styles = StyleSheet.create({
     header: {
         paddingTop: 0,
         paddingBottom: 6,
-        //padding: 16,
         alignItems: 'center',
         backgroundColor: '#fff',
         borderBottomWidth: 1,
@@ -534,7 +539,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     postCard: {
-        width: width,
+        width: '100%',
         alignSelf: 'center',
         backgroundColor: '#fff',
         borderRadius: 16,
@@ -611,9 +616,13 @@ const styles = StyleSheet.create({
         paddingBottom: 5,
         borderTopWidth: 1,
         borderColor: '#ddd',
+        backgroundColor: '#fff',
     },
     navItem: {
         flex: 1,
         alignItems: 'center',
+        paddingVertical: 10,
     },
 });
+
+export default MainPage;
